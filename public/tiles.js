@@ -35,6 +35,7 @@ export function toWireTiles(tiles) {
       if (tile.kind === "control") {
         const out = { kind: "control", verb: tile.verb, label: tile.label };
         if (tile.value !== undefined && tile.value !== null) out.value = tile.value;
+        if (tile.customIcon) out.customIcon = tile.customIcon;
         return out;
       }
       if (tile.kind === "app") {
@@ -45,6 +46,7 @@ export function toWireTiles(tiles) {
           label: tile.label,
           args: tile.args || "",
           icon: tile.icon || "",
+          ...(tile.customIcon ? { customIcon: tile.customIcon } : {}),
         };
       }
       return null;

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0d1416">
+<title>MacDoc Setup</title>
+<link rel="icon" href="/icon-192.png">
+<link rel="stylesheet" href="/setup.css">
+</head>
+<body>
+<header class="top">
+  <div class="top__brand"><div class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div><h1>MacDoc Setup</h1><p id="host-line">Connecting to your Mac…</p></div></div>
+  <nav class="top__nav" aria-label="Setup sections">
+    <a href="#dock">Dock</a><a href="#layout">Tablet layout</a><a href="#sides">Side pages</a><a href="#connection">Connection</a>
+  </nav>
+  <a class="btn btn--ghost" href="/" target="_blank" rel="noopener">Open the dock <span aria-hidden="true">↗</span></a>
+</header>
+
+<main class="wrap">
+  <p id="locked" class="locked" hidden>Pair this browser with your PIN first: <a href="/">open the dock</a>, enter the PIN, then come back to <code>/setup</code>.</p>
+
+  <section id="dock" class="section" aria-labelledby="dock-title">
+    <div class="section__head"><div><h2 id="dock-title">Dock</h2><p>Drag tiles to reorder. Click a name to rename it, or an icon to give it your own image. Changes reach your tablet straight away.</p></div><span id="dock-count" class="pill">0 tiles</span></div>
+    <div class="dock-editor">
+      <div class="dock-pages" id="dock-pages" aria-label="Your dock, page by page"></div>
+      <aside class="library" aria-labelledby="library-title">
+        <h3 id="library-title">Add to your dock</h3>
+        <div class="tabs" role="tablist"><button id="lib-apps" role="tab" aria-selected="true" class="is-active">Apps</button><button id="lib-controls" role="tab" aria-selected="false">Controls</button></div>
+        <input id="lib-filter" class="input" type="search" placeholder="Find an app…" aria-label="Find an app">
+        <ul id="lib-list" class="lib-list" aria-label="Apps and controls you can add"></ul>
+      </aside>
+    </div>
+  </section>
+
+  <section id="layout" class="section" aria-labelledby="layout-title">
+    <div class="section__head"><div><h2 id="layout-title">Tablet layout</h2><p>How the dock looks on your tablet. These settings are shared, so the tablet, this Mac and any other paired device match.</p></div><span id="layout-saved" class="pill pill--quiet">Saved</span></div>
+    <div class="cards">
+      <div class="card card--wide"><h3>Icons per page</h3><div class="grid-choices" id="grid-choices" role="group" aria-label="Icons per page"></div></div>
+      <div class="card"><h3>Background</h3><div class="swatches" id="backgrounds" role="group" aria-label="Background"></div></div>
+      <div class="card"><h3>Look</h3>
+        <label class="row">Glass style<select id="theme" class="input input--select"><option value="glass">Clear</option><option value="frost">Frosted</option><option value="smoke">Smoked</option></select></label>
+        <label class="row">Show app names<input id="show-labels" type="checkbox" class="switch"></label>
+        <label class="row">Immersive (icons only)<input id="immersive" type="checkbox" class="switch"></label>
+      </div>
+    </div>
+  </section>
+
+  <section id="sides" class="section" aria-labelledby="sides-title">
+    <div class="section__head"><div><h2 id="sides-title">Side pages</h2><p>What opens when you swipe in from each edge of the tablet.</p></div></div>
+    <div class="cards">
+      <div class="card"><h3>Swipe from the left edge</h3><div class="choice-list" id="left-panel" role="radiogroup" aria-label="Left edge opens"></div></div>
+      <div class="card"><h3>Swipe from the right edge</h3><div class="choice-list" id="right-panel" role="radiogroup" aria-label="Right edge opens"></div></div>
+      <div class="card"><h3>Clipboard &amp; sound page shows</h3>
+        <label class="row">Clipboard<input id="show-clipboard" type="checkbox" class="switch"></label>
+        <label class="row">Sound and app volumes<input id="show-sound" type="checkbox" class="switch"></label>
+        <p class="hint">Keep at least one on.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="connection" class="section" aria-labelledby="connection-title">
+    <div class="section__head"><div><h2 id="connection-title">Connection</h2><p>How your tablet finds this Mac, and which devices are paired.</p></div></div>
+    <p id="connection-remote" class="hint" hidden>Open this page on the Mac itself to see the PIN and manage paired devices.</p>
+    <div class="cards" id="connection-cards">
+      <div class="card"><h3>This Mac</h3><p class="big" id="address">–</p><p class="hint">The tablet finds this address on its own. Type it in if it doesn't.</p></div>
+      <div class="card"><h3>PIN</h3><p class="big big--pin" id="pin">––––</p>
+        <form id="pin-form" class="pin-form"><input id="pin-input" class="input" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="New PIN" aria-label="New 4-digit PIN" autocomplete="off"><button class="btn" type="submit">Change PIN</button></form>
+        <p class="hint">Changing it signs every device out; they pair again with the new PIN.</p></div>
+      <div class="card card--wide"><div class="card__head"><h3>Paired devices</h3><button id="signout-all" class="btn btn--ghost btn--small" type="button">Sign out all</button></div><ul id="devices" class="devices"></ul></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast" role="status" hidden></div>
+<input id="icon-file" type="file" accept="image/*" hidden>
+<script type="module" src="/setup.js"></script>
+</body>
+</html>

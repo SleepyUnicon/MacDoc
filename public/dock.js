@@ -40,7 +40,13 @@ export function glyphFor(tile) {
   return name.slice(0, 1).toUpperCase() || "?";
 }
 
+/** A tile's own uploaded icon, used in place of the app's or control's artwork. */
+export function renderCustomIcon(hash) {
+  return `<span class="app-icon"><img src="/api/icons/${escapeHtml(hash)}" alt="" width="48" height="48" decoding="async"></span>`;
+}
+
 export function renderAppIcon(app, lazy = false) {
+  if (app.customIcon) return renderCustomIcon(app.customIcon);
   const initial = glyphFor({ ...app, label: app.name || app.label });
   return `<span class="app-icon"><span class="app-icon__fallback">${escapeHtml(initial)}</span><img src="/api/apps/icon?v=4&amp;id=${escapeHtml(encodeURIComponent(app.id))}" alt="" width="48" height="48" decoding="async"${lazy ? ' loading="lazy"' : ""}></span>`;
 }
@@ -68,7 +74,7 @@ export function renderTile(tile, { editing = false, first = false, last = false,
   const valueAttr = hasValue ? ` data-value="${escapeHtml(String(tile.value))}"` : "";
 
   const body = [
-    `<span class="tile__glyph" aria-hidden="true">${tile.kind === "app" ? renderAppIcon(tile) : controlIcon(tile.verb)}</span>`,
+    `<span class="tile__glyph" aria-hidden="true">${tile.customIcon ? renderCustomIcon(tile.customIcon) : tile.kind === "app" ? renderAppIcon(tile) : controlIcon(tile.verb)}</span>`,
     `<span class="tile__label">${escapeHtml(tile.label)}</span>`,
     !editing ? `<span class="tile__hint">${tile.kind === "app" ? running ? "Running" : "Open app" : "Quick action"}</span>` : "",
     running && !editing ? '<span class="tile__dot" aria-hidden="true"></span>' : "",

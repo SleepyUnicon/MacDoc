@@ -11,7 +11,8 @@ import { hostname } from "node:os";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { createProvider } from "./src/platform/index.js";
-import { configuredPin, hostSettingsPath, sessionsPath } from "./src/host-settings.js";
+import { configuredPin, hostSettingsPath, sessionsPath, savePin } from "./src/host-settings.js";
+import { createIconStore } from "./src/custom-icons.js";
 import { createClipboardHub, validateClipboardText } from "./src/clipboard.js";
 import { validateControl, isDestructiveVerb, CONTROL_VERBS } from "./src/platform/contract.js";
 import { createConfigStore } from "./src/config.js";
@@ -29,6 +30,7 @@ import {
   sessionCookie,
   authorize,
   isLoopback,
+  deviceName,
 } from "./src/auth.js";
 
 export const DEFAULT_PORT = 8620;
@@ -59,7 +61,7 @@ function sendJson(res, status, body, headers = {}) {
 }
 
 /** Read a bounded JSON body. Oversized or malformed input is rejected. */
-async function readJsonBody(req) {
+async function readJsonBody(req, limit = BODY_MAX_BYTES) {
   let size = 0;
   const chunks = [];
   // Reject immediately at the cap, but keep draining without retaining bytes.
@@ -67,9 +69,9 @@ async function readJsonBody(req) {
   // can reset the response or the next request on a keep-alive connection.
   await new Promise((resolve, reject) => {
     req.on("data", (chunk) => {
-      if (size > BODY_MAX_BYTES) return;
+      if (size > limit) return;
       size += chunk.length;
-      if (size > BODY_MAX_BYTES) {
+      if (size > limit) {
         chunks.length = 0;
         const err = new Error("body too large");
         err.status = 413;
@@ -141,6 +143,7 @@ export async function createApp({
   const state = { pin };
   const appIcon = createIconCache(provider);
   const clipboard = createClipboardHub({ provider });
+  const icons = createIconStore();
   let inventoryPromise;
   let inventoryTime = 0;
   function installedApps() {
@@ -168,6 +171,7 @@ export async function createApp({
         tile.kind === "app" ? { ...tile, running: runningIds.has(tile.id) } : tile,
       ),
       running,
+      settings: config.settings,
       verbs: CONTROL_VERBS,
       allowDestructive,
     };
@@ -200,7 +204,7 @@ export async function createApp({
           return sendJson(res, 401, { error: "wrong pin", locked: fail.locked });
         }
         lockout.recordSuccess(remote);
-        const token = sessions.issue();
+        const token = sessions.issue({ name: deviceName(req.headers["user-agent"]), ip: remote.replace(/^::ffff:/, "") });
         return sendJson(res, 200, { ok: true }, {
           "set-cookie": sessionCookie(token, { secure: Boolean(req.socket.encrypted) }),
         });
@@ -214,7 +218,7 @@ export async function createApp({
       }
 
       if (!path.startsWith("/api/")) {
-        const file = resolveStatic(path);
+        const file = resolveStatic(path === "/setup" || path === "/setup/" ? "/setup.html" : path);
         if (!file) return sendJson(res, 403, { error: "forbidden" });
         try {
           const body = await readFile(file);
@@ -319,6 +323,47 @@ export async function createApp({
         if (Object.keys(body).length) return sendJson(res, 400, { error: "capture actions take no options" });
         if (!provider.capture) return sendJson(res, 501, { error: "Screen capture is available on Windows." });
         return sendJson(res, 200, await provider.capture[captureActions[path]]());
+      }
+
+      // ---- Setup page ----
+      const iconMatch = path.match(/^\/api\/icons\/([a-f0-9]{64})$/);
+      if (iconMatch && req.method === "GET") {
+        const icon = await icons.read(iconMatch[1]);
+        if (!icon) return sendJson(res, 404, { error: "no such icon" });
+        res.writeHead(200, { "content-type": icon.type, "content-length": icon.data.length, "cache-control": "private, max-age=31536000, immutable", "x-content-type-options": "nosniff" });
+        return res.end(icon.data);
+      }
+      if (path === "/api/icons" && req.method === "POST") {
+        const body = await readJsonBody(req, 1_500_000);
+        return sendJson(res, 200, { icon: await icons.save(body.data) });
+      }
+      if (path === "/api/settings" && req.method === "GET") {
+        return sendJson(res, 200, { settings: (await configStore.load()).settings });
+      }
+      if (path === "/api/settings" && req.method === "PUT") {
+        const body = await readJsonBody(req);
+        const current = (await configStore.load()).settings || {};
+        const saved = await configStore.save({ settings: { ...current, ...body, updatedAt: Date.now() } });
+        await hub.broadcast();
+        return sendJson(res, 200, { settings: saved.settings });
+      }
+      // PIN and paired devices: only from the Mac itself.
+      if (path === "/api/devices" || path.startsWith("/api/devices/") || path === "/api/pin") {
+        if (!trustLoopback || !localPage(req, remote)) return sendJson(res, 403, { error: "Open the setup page on the Mac to change this." });
+        if (path === "/api/devices" && req.method === "GET") return sendJson(res, 200, { devices: sessions.list?.() || [] });
+        const deviceMatch = path.match(/^\/api\/devices\/([A-Za-z0-9_-]{20,64})$/);
+        if (deviceMatch && req.method === "DELETE") return sendJson(res, 200, { removed: sessions.revoke?.(deviceMatch[1]) || false });
+        if (path === "/api/devices" && req.method === "DELETE") { sessions.revokeAll(); return sendJson(res, 200, { ok: true }); }
+        if (path === "/api/pin" && req.method === "POST") {
+          const body = await readJsonBody(req);
+          if (!isValidPinShape(body.pin)) return sendJson(res, 400, { error: "The PIN must be exactly 4 digits." });
+          savePin(body.pin);
+          state.pin = body.pin;
+          state.fixedPin = true;
+          sessions.rekey?.(body.pin);
+          return sendJson(res, 200, { pin: body.pin, devices: [] });
+        }
+        return sendJson(res, 404, { error: "not found" });
       }
 
       if (path === "/api/nowplaying/artwork" && req.method === "GET") {

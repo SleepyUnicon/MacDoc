@@ -73,6 +73,13 @@ macOS ask once more.
 
 Brightness and screen capture still need the Windows host.
 
+**Set it up from your Mac.** Open `http://localhost:8620/setup` on the Mac to
+arrange the dock on a big screen: drag tiles to reorder, rename them, give any
+tile your own icon (PNG, JPEG or WebP), choose the tablet's grid, background and
+glass, pick what each edge swipe opens, and see the PIN and paired devices.
+Changes reach the tablet straight away. The PIN and device controls only work on
+the Mac itself; custom icons are kept in `~/.config/macdoc/icons`.
+
 **Keep the same PIN.** By default MacDoc makes a new PIN each time it starts.
 To use your own, run `npm run set-pin -- 1234` (any four digits) and restart
 MacDoc. The PIN is saved in `~/.config/macdoc/host.json` on your Mac, never in

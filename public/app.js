@@ -163,10 +163,37 @@ function syncLayout() {
   document.querySelectorAll("[data-per-page]").forEach((button) => button.setAttribute("aria-pressed", String(Number(button.dataset.perPage) === layout.perPage)));
   document.querySelectorAll("[data-background]").forEach((button) => { if (button.tagName === "BUTTON") button.setAttribute("aria-pressed", String(button.dataset.background === layout.background)); });
 }
-function saveLayout(changes) {
+// Layout and side-page settings are shared through the host, so the setup
+// page on the Mac and every paired device show the same dock.
+let appliedSettingsAt = 0, settingsPush = null;
+const SHARED_LAYOUT_KEYS = ["perPage", "background", "theme", "showLabels", "immersive"];
+function saveLayout(changes, { fromHost = false } = {}) {
   layout = normalizeLayout({ ...layout, ...changes });
   try { localStorage.setItem("macdoc-layout", JSON.stringify(layout)); } catch { /* Device preferences are optional. */ }
   currentPage = 0; syncLayout(); paint();
+  if (fromHost || !paired) return;
+  pushLayout();
+}
+function pushLayout() {
+  clearTimeout(settingsPush);
+  settingsPush = setTimeout(async () => {
+    try {
+      const body = Object.fromEntries(SHARED_LAYOUT_KEYS.map((key) => [key, layout[key]]));
+      const { settings } = await api("/api/settings", { method: "PUT", body: JSON.stringify(body) });
+      appliedSettingsAt = settings?.updatedAt || appliedSettingsAt;
+    } catch { /* The host may be older; this device keeps its own layout. */ }
+  }, 300);
+}
+let seededHost = false;
+function applyHostSettings(settings) {
+  // The first device to connect shares its own layout, so the setup page starts from what the tablet shows.
+  if (!settings) { if (paired && !seededHost) { seededHost = true; pushLayout(); } return false; }
+  if (settings.updatedAt <= appliedSettingsAt) return false;
+  appliedSettingsAt = settings.updatedAt;
+  panels.configure(settings);
+  const changed = SHARED_LAYOUT_KEYS.some((key) => settings[key] !== layout[key]);
+  if (changed) saveLayout(Object.fromEntries(SHARED_LAYOUT_KEYS.map((key) => [key, settings[key]])), { fromHost: true });
+  return changed;
 }
 function showPageHint() {
   clearTimeout(pageHintTimer);
@@ -178,6 +205,7 @@ function paint() {
   const view = { ...state, tiles: state.tiles.map((tile) => tile.kind === "app" ? { ...tile, running: running.has(tile.id) } : tile) };
   const pages = pageCount(state.tiles, layout);
   currentPage = Math.min(currentPage, pages - 1);
+  if (applyHostSettings(state.settings)) return; // saveLayout repaints with the new grid
   welcome.sync(state, paired);
   $("dock").innerHTML = renderPages(view, layout, editing);
   $("dock").classList.toggle("is-editing", editing);

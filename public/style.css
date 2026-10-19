@@ -625,3 +625,10 @@ body.is-arranging .dock-gear, body.has-panel .edge-handle, body.has-panel .dock-
   .mixer { grid-template-columns: 1fr; padding-left: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .panel, .player__art { transition: none; } .mixer__live { animation: none; } }
+
+.mixer--single { grid-template-columns: minmax(0, 720px); justify-content: center; }
+.mixer__col[hidden], .edge-handle[hidden] { display: none !important; }
+/* Close tabs sit on the far side from the edge a page came in from. */
+.panel[data-side="left"] .panel__close { right: 0; left: auto; border-radius: 16px 0 0 16px; }
+.panel[data-side="right"] .panel__close { left: 0; right: auto; border-radius: 0 16px 16px 0; }
+.panel[data-side="left"] .mixer { padding-left: max(28px, env(safe-area-inset-left)); padding-right: 52px; }

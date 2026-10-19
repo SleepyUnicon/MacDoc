@@ -19,13 +19,18 @@ export function createPanels({ api, notify, report, clipboard, isReady }) {
   const $ = (id) => document.getElementById(id);
   const panels = { player: $("player-panel"), mixer: $("mixer-panel") };
   let openName = null, media = null, mixerTimer = null, tick = null, artKey = "", volumeBusy = false, outputMuted = false;
+  // Which page each edge opens; the setup page on the Mac can change these.
+  const edges = { left: "player", right: "mixer" };
 
   // ---------- open / close ----------
-  function open(name) {
-    if (!isReady() || openName === name) return;
+  function open(name, side = name === "player" ? "left" : "right") {
+    if (!isReady() || openName === name || !panels[name]) return;
     if (openName) close(true);
     openName = name;
     const panel = panels[name];
+    panel.dataset.side = side;
+    panel.classList.toggle("panel--left", side === "left");
+    panel.classList.toggle("panel--right", side === "right");
     panel.hidden = false;
     requestAnimationFrame(() => panel.classList.add("is-open"));
     document.body.classList.add("has-panel");
@@ -47,23 +52,22 @@ export function createPanels({ api, notify, report, clipboard, isReady }) {
   }
 
   // ---------- gestures ----------
-  function edgeSwipe(handle, name, direction) {
+  function edgeSwipe(handle, side, direction) {
     let start = null;
-    handle.addEventListener("pointerdown", (event) => { start = { id: event.pointerId, x: event.clientX, y: event.clientY }; handle.setPointerCapture?.(event.pointerId); });
+    handle.addEventListener("pointerdown", (event) => { start = { id: event.pointerId, x: event.clientX, y: event.clientY }; try { handle.setPointerCapture?.(event.pointerId); } catch { /* synthetic or already-released pointer */ } });
     handle.addEventListener("pointerup", (event) => {
       if (start?.id !== event.pointerId) return;
       const dx = (event.clientX - start.x) * direction, dy = Math.abs(event.clientY - start.y);
       const tap = Math.abs(event.clientX - start.x) < 8 && dy < 8;
       start = null;
-      if (tap || (dx > SWIPE && dx > dy)) open(name);
+      if (tap || (dx > SWIPE && dx > dy)) open(edges[side], side);
     });
     handle.addEventListener("pointercancel", () => { start = null; });
   }
-  edgeSwipe($("edge-left"), "player", 1);
-  edgeSwipe($("edge-right"), "mixer", -1);
+  edgeSwipe($("edge-left"), "left", 1);
+  edgeSwipe($("edge-right"), "right", -1);
 
   for (const [name, panel] of Object.entries(panels)) {
-    const closing = name === "player" ? -1 : 1; // the player closes by swiping left
     let start = null;
     panel.addEventListener("pointerdown", (event) => {
       if (event.target.closest("input, textarea, button, a, [data-clip]")) return;
@@ -71,6 +75,7 @@ export function createPanels({ api, notify, report, clipboard, isReady }) {
     });
     panel.addEventListener("pointerup", (event) => {
       if (start?.id !== event.pointerId) return;
+      const closing = panel.dataset.side === "left" ? -1 : 1; // swipe back toward the edge it came from
       const dx = (event.clientX - start.x) * closing, dy = Math.abs(event.clientY - start.y);
       start = null;
       if (dx > SWIPE * 1.5 && dx > dy * 1.5) close();
@@ -209,6 +214,19 @@ export function createPanels({ api, notify, report, clipboard, isReady }) {
   return {
     open,
     close,
+    /** Apply the Mac's side-page settings. */
+    configure(settings = {}) {
+      edges.left = ["player", "mixer", "none"].includes(settings.leftPanel) ? settings.leftPanel : "player";
+      edges.right = ["player", "mixer", "none"].includes(settings.rightPanel) ? settings.rightPanel : "mixer";
+      $("edge-left").hidden = edges.left === "none";
+      $("edge-right").hidden = edges.right === "none";
+      $("edge-left").setAttribute("aria-label", edges.left === "player" ? "Open the music player" : "Open clipboard and sound");
+      $("edge-right").setAttribute("aria-label", edges.right === "player" ? "Open the music player" : "Open clipboard and sound");
+      const columns = panels.mixer.querySelectorAll(".mixer__col");
+      columns[0].hidden = settings.showClipboard === false;
+      columns[1].hidden = settings.showSound === false;
+      panels.mixer.querySelector(".mixer").classList.toggle("mixer--single", settings.showClipboard === false || settings.showSound === false);
+    },
     get openName() { return openName; },
     /** Feed every now-playing update in, so the player stays current. */
     update(next) { media = next && next.title ? { ...next, at: Date.now() } : null; if (openName === "player") paintPlayer(); },

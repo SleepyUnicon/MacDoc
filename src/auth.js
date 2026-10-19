@@ -100,15 +100,21 @@ export const pinFingerprint = (pin) => createHash("sha256").update("macdoc-pin:"
  * changing the PIN signs every device out.
  */
 export function createSessionStore({ ttlMs = SESSION_TTL_MS, now = Date.now, file = null, pin = "" } = {}) {
+  // hash -> { expiry, name, ip, created, lastSeen }
   const sessions = new Map();
-  const fingerprint = file ? pinFingerprint(pin) : "";
+  let fingerprint = file ? pinFingerprint(pin) : "";
+  let savedAt = 0;
 
   if (file) {
     try {
       const saved = JSON.parse(readFileSync(file, "utf8"));
       if (saved?.pin === fingerprint && saved.sessions && typeof saved.sessions === "object") {
-        for (const [hash, expiry] of Object.entries(saved.sessions)) {
-          if (typeof hash === "string" && Number.isFinite(expiry) && expiry > now()) sessions.set(hash, expiry);
+        for (const [hash, value] of Object.entries(saved.sessions)) {
+          // Earlier files stored only the expiry.
+          const entry = typeof value === "number" ? { expiry: value } : value;
+          if (typeof hash === "string" && Number.isFinite(entry?.expiry) && entry.expiry > now()) {
+            sessions.set(hash, { expiry: entry.expiry, name: String(entry.name || "Paired device").slice(0, 80), ip: String(entry.ip || "").slice(0, 64), created: entry.created || 0, lastSeen: entry.lastSeen || 0 });
+          }
         }
       }
     } catch {
@@ -118,10 +124,11 @@ export function createSessionStore({ ttlMs = SESSION_TTL_MS, now = Date.now, fil
 
   function persist() {
     if (!file) return;
+    savedAt = now();
     try {
       mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
       const temp = file + ".tmp";
-      writeFileSync(temp, JSON.stringify({ version: 1, pin: fingerprint, sessions: Object.fromEntries(sessions) }), { mode: 0o600 });
+      writeFileSync(temp, JSON.stringify({ version: 2, pin: fingerprint, sessions: Object.fromEntries(sessions) }), { mode: 0o600 });
       renameSync(temp, file);
     } catch {
       /* Pairing still works for this run; it just won't survive a restart. */
@@ -130,30 +137,55 @@ export function createSessionStore({ ttlMs = SESSION_TTL_MS, now = Date.now, fil
 
   function prune(at) {
     let changed = false;
-    for (const [hash, expiry] of sessions) if (expiry <= at) { sessions.delete(hash); changed = true; }
+    for (const [hash, entry] of sessions) if (entry.expiry <= at) { sessions.delete(hash); changed = true; }
     return changed;
   }
 
   return {
-    issue() {
+    /** `meta` names the device in the setup page: { name, ip }. */
+    issue(meta = {}) {
       const at = now();
       prune(at);
       const token = randomBytes(32).toString("base64url");
-      sessions.set(hashToken(token), at + ttlMs);
+      sessions.set(hashToken(token), { expiry: at + ttlMs, name: String(meta.name || "Paired device").slice(0, 80), ip: String(meta.ip || "").slice(0, 64), created: at, lastSeen: at });
       persist();
       return token;
     },
-    verify(token) {
+    /** `seen` refreshes the device's details: { name, ip }. */
+    verify(token, seen = {}) {
       if (typeof token !== "string" || !token) return false;
       const hash = hashToken(token);
-      const expiry = sessions.get(hash);
-      if (expiry === undefined) return false;
-      if (expiry <= now()) {
+      const entry = sessions.get(hash);
+      if (!entry) return false;
+      const at = now();
+      if (entry.expiry <= at) {
         sessions.delete(hash);
         persist();
         return false;
       }
+      entry.lastSeen = at;
+      let changed = false;
+      if (seen.ip && seen.ip !== entry.ip) { entry.ip = String(seen.ip).slice(0, 64); changed = true; }
+      if (seen.name && entry.name === "Paired device") { entry.name = String(seen.name).slice(0, 80); changed = true; }
+      if (changed || at - savedAt > 60_000) persist(); // "last seen" is approximate; don't write on every request
       return true;
+    },
+    /** Paired devices for the setup page. `id` is the stored hash, never the token. */
+    list() {
+      if (prune(now())) persist();
+      return [...sessions].map(([id, entry]) => ({ id, name: entry.name, ip: entry.ip, created: entry.created, lastSeen: entry.lastSeen }))
+        .sort((a, b) => b.lastSeen - a.lastSeen);
+    },
+    revoke(id) {
+      const removed = sessions.delete(id);
+      if (removed) persist();
+      return removed;
+    },
+    /** A new PIN signs every device out. */
+    rekey(nextPin) {
+      fingerprint = file ? pinFingerprint(nextPin) : "";
+      sessions.clear();
+      persist();
     },
     revokeAll() {
       sessions.clear();
@@ -164,6 +196,16 @@ export function createSessionStore({ ttlMs = SESSION_TTL_MS, now = Date.now, fil
       return sessions.size;
     },
   };
+}
+
+/** A readable device name from a User-Agent, for the paired-devices list. */
+export function deviceName(userAgent = "") {
+  const ua = String(userAgent);
+  const model = ua.match(/Android [\d.]+; ([^;)]+?)(?: Build|\))/)?.[1]?.trim();
+  if (/Android/.test(ua)) return (/\bwv\b/.test(ua) ? "MacDoc app" : "Browser") + " on " + (model && model !== "K" ? model : "Android");
+  const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "Browser";
+  const os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Mac OS X/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : /Linux/.test(ua) ? "Linux" : "device";
+  return browser + " on " + os;
 }
 
 export function parseCookies(header) {
@@ -209,6 +251,7 @@ export function authorize({ req, sessions, lockout, remote, trustLoopback = true
   if (status.locked) {
     return { ok: false, via: "locked", retryInMs: status.retryInMs, code: 429 };
   }
-  if (sessions.verify(tokenFromRequest(req))) return { ok: true, via: "session" };
+  const seen = { ip: String(remote || "").replace(/^::ffff:/, ""), name: deviceName(req?.headers?.["user-agent"]) };
+  if (sessions.verify(tokenFromRequest(req), seen)) return { ok: true, via: "session" };
   return { ok: false, via: "unauthorized", code: 401 };
 }
