@@ -27,6 +27,7 @@ import {
   createSessionStore,
   sessionCookie,
   authorize,
+  isLoopback,
 } from "./src/auth.js";
 
 export const DEFAULT_PORT = 8620;
@@ -94,6 +95,16 @@ async function readJsonBody(req) {
 }
 
 /** Same-origin guard for state-changing requests (CSRF defence). */
+/** True only for a page loaded as localhost itself, which rules out DNS-rebinding hosts. */
+function localPage(req, remote) {
+  if (!isLoopback(remote) || !sameOrigin(req)) return false;
+  try {
+    return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(`http://${req.headers.host}`).hostname);
+  } catch {
+    return false;
+  }
+}
+
 function sameOrigin(req) {
   const origin = req.headers.origin;
   if (!origin) return true; // native client
@@ -192,6 +203,13 @@ export async function createApp({
         return sendJson(res, 200, { ok: true }, {
           "set-cookie": sessionCookie(token, { secure: Boolean(req.socket.encrypted) }),
         });
+      }
+
+      // The PIN is shown on the host's own screen so a tablet can be paired
+      // without reading the terminal. Other devices never receive it.
+      if (path === "/api/pairing" && req.method === "GET") {
+        if (!trustLoopback || !localPage(req, remote)) return sendJson(res, 403, { error: "forbidden" });
+        return sendJson(res, 200, { pin: state.pin, address: state.endpoint || null });
       }
 
       if (!path.startsWith("/api/")) {
@@ -365,6 +383,7 @@ export async function start({ port = Number(process.env.PORT) || DEFAULT_PORT, h
 
   port = app.server.address().port;
   const endpoint = address ? `http://${address}:${port}` : `http://localhost:${port}`;
+  app.state.endpoint = endpoint;
   const discovery = startDiscovery({ endpoint, port: DISCOVERY_PORT });
   return { ...app, endpoint, discovery, port };
 }

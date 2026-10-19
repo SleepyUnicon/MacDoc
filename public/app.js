@@ -119,7 +119,18 @@ function showPair(message = "") {
   $("app").hidden = true;
   $("pair-error").textContent = message;
 }
-function showApp() { paired = true; $("pair").hidden = true; $("app").hidden = false; syncLayout(); paintCapture(); }
+function showApp() { paired = true; $("pair").hidden = true; $("app").hidden = false; syncLayout(); paintCapture(); showPairingInfo(); }
+// Only the host's own browser is given the PIN; other devices get 403 and see nothing.
+async function showPairingInfo() {
+  try {
+    const res = await fetch("/api/pairing", { credentials: "same-origin" });
+    if (!res.ok) return;
+    const { pin, address } = await res.json();
+    document.querySelectorAll("[data-pair-pin]").forEach((el) => { el.textContent = pin; });
+    document.querySelectorAll("[data-pair-address]").forEach((el) => { el.textContent = address ? "Mac address · " + address.replace(/^https?:\/\//, "") : ""; });
+    document.querySelectorAll("[data-pair-info]").forEach((el) => { el.hidden = false; });
+  } catch { /* pairing details are optional */ }
+}
 function setConn(on) {
   online = on;
   if (!on) inputPad.disconnect();

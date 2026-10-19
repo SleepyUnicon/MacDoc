@@ -515,3 +515,10 @@ body.has-welcome .drawer-trigger, body.has-welcome .app { visibility: hidden; }
   .intro { display: none; }
   .welcome:not([hidden]) > * { animation: none; }
 }
+
+.pair-info { display: inline-flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 18px 0 0; padding: 10px 16px; border: 1px solid #b4edcc40; border-radius: 14px; background: #b4edcc12; color: #dbe7e4; font-size: 13px; }
+.pair-info [data-icon] { width: 17px; height: 17px; color: var(--accent); }
+.pair-info strong { font-size: 18px; letter-spacing: .18em; color: var(--accent); font-variant-numeric: tabular-nums; }
+.pair-info small { flex-basis: 100%; text-align: center; color: var(--muted); font-size: 11px; }
+.pair-info--drawer { display: flex; margin: 0 0 12px; justify-content: center; }
+.pair-info[hidden] { display: none; }
