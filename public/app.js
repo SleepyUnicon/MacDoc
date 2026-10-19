@@ -105,7 +105,7 @@ async function api(path, options = {}) {
   if (!res.ok) {
     const detail = (await res.json().catch(() => ({}))).error;
     const messages = { "wrong pin": "That PIN doesn’t match. Try the PIN shown on your Mac.", "invalid pin": "Enter all four digits.", locked: "Too many attempts. Wait a moment and try again.", "internal error": "Your Mac couldn’t complete that action. Check the app or device and try again." };
-    throw new Error(messages[detail] || detail || "The request couldn’t be completed.");
+    throw Object.assign(new Error(messages[detail] || detail || "The request couldn’t be completed."), { status: res.status });
   }
   return res.json();
 }

@@ -22,7 +22,7 @@ MacDoc's host runs on macOS with Node.js 20+:
 
 ```bash
 npm install
-npm run build:mac   # builds the touchpad/keyboard helper (needs Xcode Command Line Tools)
+npm run build:mac   # builds the touchpad/keyboard and sound helpers (needs Xcode Command Line Tools)
 npm start
 ```
 
@@ -50,6 +50,26 @@ host — Terminal if you run `npm start` there. The first time you open the
 touchpad macOS offers to open System Settings; the touchpad status names the app
 to allow under Privacy & Security › Accessibility. Turn it on, then reopen the
 touchpad. Ctrl+scroll zooms in browsers, and the whole screen if macOS zoom is on.
+
+**Sound** (swipe in from the right edge) lists every app playing sound on the Mac,
+each with its own volume slider and mute, under the Mac's own output volume.
+Spotify, Music, QuickTime and VLC are turned up or down through their own
+volume. Every other app — Safari, Chrome, Zoom, games — goes through a gain
+engine in the `MacDocAudio` helper (source: `native/mac/MacDocAudio.swift`; set
+`MACDOC_AUDIO_HELPER` to use a copy elsewhere). It needs macOS 14.2 or later and
+uses Core Audio process taps: while an app is below 100% or muted, its sound is
+taken off the speakers and played back at the level you chose, ramped so changes
+don't click. It follows the Mac's current output device and new audio
+processes of the app; at 100%, or when the app quits, the tap is released and the
+app plays directly again. Nothing is recorded or saved.
+
+The first time you move a non-player app's slider, macOS asks to let
+**MacDocAudio** record system audio — choose **Allow**. If you said no, the Sound
+column says so: turn MacDocAudio on in System Settings › Privacy & Security ›
+Screen & System Audio Recording (under **System Audio Recording Only**) and move
+the slider again. The helper asks for itself rather than for Terminal, so it
+works however the host is started; rebuilding it with `npm run build:mac` makes
+macOS ask once more.
 
 Brightness and screen capture still need the Windows host.
 
@@ -213,7 +233,7 @@ Windows and Android are the downloadable app platforms.
 | Command | Purpose |
 | --- | --- |
 | `npm test` | Run the 19 platform-independent verification scripts |
-| `npm run build:mac` | Build the macOS touchpad/keyboard helper (`MacDocInput`) |
+| `npm run build:mac` | Build the macOS helpers: touchpad/keyboard (`MacDocInput`) and sound (`MacDocAudio`) |
 | `npm run build:windows` | Package the Windows helper, tray, Node host, and web UI |
 | `npm run test:windows` | Run native Windows smoke checks |
 | `npm run build:installer` | Create `artifacts/installer/MacDocSetup.exe` |

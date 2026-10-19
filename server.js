@@ -335,9 +335,13 @@ export async function createApp({
       if (path === "/api/audio/app" && req.method === "POST") {
         const body = await readJsonBody(req);
         if (typeof body.bundleId !== "string" || !/^[A-Za-z0-9.-]{1,200}$/.test(body.bundleId)) return sendJson(res, 400, { error: "bundleId required" });
-        if (!Number.isInteger(body.volume) || body.volume < 0 || body.volume > 100) return sendJson(res, 400, { error: "volume must be 0..100" });
-        if (!provider.setAppVolume) return sendJson(res, 501, { error: "Per-app audio is available on macOS." });
-        await provider.setAppVolume(body.bundleId, body.volume);
+        const hasVolume = body.volume !== undefined, hasMute = body.muted !== undefined;
+        if (!hasVolume && !hasMute) return sendJson(res, 400, { error: "volume or muted required" });
+        if (hasVolume && (!Number.isInteger(body.volume) || body.volume < 0 || body.volume > 100)) return sendJson(res, 400, { error: "volume must be 0..100" });
+        if (hasMute && typeof body.muted !== "boolean") return sendJson(res, 400, { error: "muted must be true or false" });
+        if (!provider.setAppVolume || (hasMute && !provider.setAppMute)) return sendJson(res, 501, { error: "Per-app audio is available on macOS." });
+        if (hasVolume) await provider.setAppVolume(body.bundleId, body.volume);
+        if (hasMute) await provider.setAppMute(body.bundleId, body.muted);
         return sendJson(res, 200, { ok: true });
       }
 
@@ -388,7 +392,7 @@ export async function createApp({
   const inputHub = createInputHub({ server, input: provider.input, isAuthorized: (req) =>
     authorize({ req, sessions, lockout, remote: req.socket.remoteAddress || "", trustLoopback }).ok,
   });
-  server.on("close", () => { provider.capture?.dispose().catch(() => {}); provider.input?.dispose(); });
+  server.on("close", () => { provider.capture?.dispose().catch(() => {}); provider.input?.dispose(); provider.dispose?.(); });
   clipboard.start();
   server.on("close", () => clipboard.stop());
   return { server, hub, inputHub, clipboard, provider, configStore, dockState, state, sessions, lockout };

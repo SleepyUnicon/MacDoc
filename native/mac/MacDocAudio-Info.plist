@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.sleepyunicon.macdoc.audio</string>
+	<key>CFBundleName</key>
+	<string>MacDocAudio</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>MacDoc turns each app up or down from your tablet by passing that app's sound through at the volume you choose. Nothing is recorded or saved.</string>
+</dict>
+</plist>

@@ -132,10 +132,16 @@ export function createPanels({ api, notify, report, clipboard, isReady }) {
     }
   }
   function paintApps(apps) {
-    $("mixer-apps").innerHTML = apps.length ? apps.map((app) => '<li class="mixer__app">' + renderAppIcon(app) +
-      '<div class="mixer__app-body"><div class="mixer__row-head"><strong>' + escapeHtml(app.name) + '</strong><span>' + (app.playing ? '<i class="mixer__live"></i>Playing' : "Quiet") + (app.adjustable && Number.isFinite(app.volume) ? " · " + app.volume + "%" : "") + "</span></div>" +
-      (app.adjustable ? '<input type="range" min="0" max="100" step="1" value="' + (app.volume ?? 100) + '" data-app-volume="' + escapeHtml(app.bundleId) + '" aria-label="' + escapeHtml(app.name) + ' volume">' : '<p class="mixer__follows">Follows the Mac volume</p>') +
-      "</div></li>").join("") : '<li class="mixer__empty">No app is playing sound right now.</li>';
+    $("mixer-apps").innerHTML = apps.length ? apps.map((app) => {
+      const id = escapeHtml(app.bundleId), level = app.muted ? "Muted" : Number.isFinite(app.volume) ? app.volume + "%" : "";
+      return '<li class="mixer__app">' + renderAppIcon(app) +
+        '<div class="mixer__app-body"><div class="mixer__row-head"><strong>' + escapeHtml(app.name) + '</strong><span>' + (app.playing ? '<i class="mixer__live"></i>Playing' : "Quiet") + (app.adjustable && level ? " · " + level : "") + "</span></div>" +
+        (app.adjustable
+          ? '<div class="mixer__slider"><button type="button" data-app-mute="' + id + '" aria-pressed="' + Boolean(app.muted) + '" aria-label="' + (app.muted ? "Unmute " : "Mute ") + escapeHtml(app.name) + '">' + icon(app.muted ? "mute" : "volume") + "</button>" +
+            '<input type="range" min="0" max="100" step="1" value="' + (app.volume ?? 100) + '" data-app-volume="' + id + '" data-muted="' + Boolean(app.muted) + '" aria-label="' + escapeHtml(app.name) + ' volume"></div>'
+          : '<p class="mixer__follows">Follows the Mac volume</p>') +
+        "</div></li>";
+    }).join("") : '<li class="mixer__empty">No app is playing sound right now.</li>';
   }
   async function refreshMixer() {
     if (!openName) return;
@@ -143,7 +149,8 @@ export function createPanels({ api, notify, report, clipboard, isReady }) {
       const mixer = await api("/api/audio");
       paintOutput(mixer.output);
       if (openName === "mixer" && !document.activeElement?.matches?.("[data-app-volume]")) paintApps(mixer.apps);
-      $("mixer-status").textContent = mixer.helper ? "What's playing on your Mac, and how loud." : "Run npm run build:mac on the Mac to list apps with sound.";
+      $("mixer-status").textContent = !mixer.helper ? "Run npm run build:mac on the Mac to list apps with sound."
+        : mixer.mixer?.message || "What's playing on your Mac, and how loud.";
     } catch (error) {
       $("mixer-status").textContent = error.message;
     }
@@ -167,14 +174,35 @@ export function createPanels({ api, notify, report, clipboard, isReady }) {
     catch (error) { report(error); }
   });
   const appTimers = new Map();
+  function setApp(bundleId, change) {
+    return api("/api/audio/app", { method: "POST", body: JSON.stringify({ bundleId, ...change }) }).catch((error) => {
+      // A missing permission belongs in the column's status, where it stays until fixed.
+      if (error.status === 403) $("mixer-status").textContent = error.message;
+      else notify(error.message, true);
+    });
+  }
   $("mixer-apps").addEventListener("input", (event) => {
     const slider = event.target.closest("[data-app-volume]");
     if (!slider) return;
     const bundleId = slider.dataset.appVolume;
     clearTimeout(appTimers.get(bundleId));
     appTimers.set(bundleId, setTimeout(() => {
-      api("/api/audio/app", { method: "POST", body: JSON.stringify({ bundleId, volume: Number(slider.value) }) }).catch((error) => notify(error.message, true));
-    }, 120));
+      // Moving a muted app's slider turns it back on.
+      const change = { volume: Number(slider.value) };
+      if (slider.dataset.muted === "true") { change.muted = false; slider.dataset.muted = "false"; }
+      setApp(bundleId, change);
+    }, 80));
+  });
+  $("mixer-apps").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-app-mute]");
+    if (!button) return;
+    const muted = button.getAttribute("aria-pressed") !== "true";
+    button.setAttribute("aria-pressed", String(muted));
+    button.innerHTML = icon(muted ? "mute" : "volume");
+    button.disabled = true;
+    await setApp(button.dataset.appMute, { muted });
+    button.disabled = false;
+    refreshMixer();
   });
   $("mixer-apps").addEventListener("change", () => setTimeout(refreshMixer, 300));
 

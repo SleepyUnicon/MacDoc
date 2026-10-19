@@ -14,6 +14,11 @@
  * permission the first time each is used. Brightness has no built-in CLI on
  * macOS and reports itself unsupported.
  *
+ * Per-app volume uses each player's own scripting where it has one (Spotify,
+ * Music, QuickTime, VLC) and a Core Audio process-tap gain engine for every
+ * other app (native/mac/MacDocAudio.swift, see mac-mixer.js). The engine needs
+ * the "System Audio Recording" permission, which macOS asks for MacDocAudio.
+ *
  * The touchpad, remote keyboard and signature insert run in a small Swift
  * helper (native/mac/MacDocInput.swift, built with `npm run build:mac`) that
  * posts CGEvents. It needs the Accessibility permission for whichever app
@@ -26,6 +31,7 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateControl } from "./contract.js";
 import { createMacInput } from "./input.js";
+import { createMacMixer, deniedMessage } from "./mac-mixer.js";
 
 /** Apps that live outside the Applications folders but belong on a dock. */
 const EXTRA_APPS = ["/System/Library/CoreServices/Finder.app"];
@@ -214,6 +220,19 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
   // pbpaste falls back to a legacy encoding without a UTF-8 locale.
   if (!/UTF-8/i.test(process.env.LC_ALL || process.env.LANG || "")) process.env.LANG = "en_US.UTF-8";
   const cpuUsage = createCpuMeter();
+  const mixer = createMacMixer({ helperPath: audioHelperPath, ...(spawn ? { spawn } : {}) });
+  /** Scriptable players muted from the dock, with the volume to restore. */
+  const scriptMuted = new Map();
+  let permission = { at: 0, value: null };
+
+  /** Whether macOS lets the gain engine tap apps, read without asking (cached briefly). */
+  async function capturePermission() {
+    if (mixer.status.permission === "denied") return mixer.status;
+    if (Date.now() - permission.at < 10_000) return permission.value;
+    const value = await exec(audioHelperPath, ["check"]).then(({ stdout }) => JSON.parse(stdout)).catch(() => null);
+    permission = { at: Date.now(), value };
+    return value;
+  }
 
   async function running() {
     const { stdout } = await exec("ps", ["-axo", "pid=,comm="]);
@@ -372,34 +391,72 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
     },
 
     async audioMixer() {
-      const [output, listed] = await Promise.all([
+      const [output, listed, access] = await Promise.all([
         exec("osascript", ["-e", "set s to get volume settings\nreturn (output volume of s as text) & \",\" & (output muted of s as text)"])
           .then(({ stdout }) => { const [volume, muted] = String(stdout).trim().split(","); return { volume: Number(volume), muted: muted === "true" }; })
           .catch(() => ({ volume: null, muted: false })),
         exec(audioHelperPath, ["list"]).then(({ stdout }) => JSON.parse(stdout)).catch(() => null),
+        capturePermission(),
       ]);
+      const engine = mixer.status;
       const apps = [];
       for (const entry of listed || []) {
-        const adjustable = Boolean(PLAYER_SCRIPTS[entry.bundleId]?.setVolume);
-        // Show what is making sound now, plus players MacDoc can turn up or down.
-        if (!entry.playing && !adjustable) continue;
+        const scripted = Boolean(PLAYER_SCRIPTS[entry.bundleId]?.setVolume);
+        const level = mixer.level(entry.bundleId);
+        // Show what is making sound now, players MacDoc can script, and anything turned down.
+        if (!entry.playing && !scripted && !level) continue;
+        let volume = scripted ? await playerVolume(entry.bundleId) : (level?.volume ?? 100);
+        let muted = scripted ? scriptMuted.has(entry.bundleId) : Boolean(level?.muted);
+        if (scripted && muted && volume > 0) { scriptMuted.delete(entry.bundleId); muted = false; } // turned up on the Mac
+        if (scripted && muted) volume = scriptMuted.get(entry.bundleId);
         apps.push({
           id: appIdFromBundle(entry.app),
           name: entry.name,
           bundleId: entry.bundleId,
           playing: Boolean(entry.playing),
-          adjustable,
-          volume: adjustable ? await playerVolume(entry.bundleId) : null,
+          adjustable: scripted || (listed !== null && engine.supported),
+          via: scripted ? "player" : "mixer",
+          volume,
+          muted,
         });
       }
-      return { output, apps, helper: listed !== null };
+      const denied = engine.permission === "denied" || access?.permission === "denied";
+      return {
+        output,
+        apps,
+        helper: listed !== null,
+        mixer: {
+          supported: engine.supported,
+          permission: engine.permission || access?.permission || null,
+          message: !engine.supported ? engine.error : denied ? deniedMessage(engine.app || access?.app) : engine.error,
+        },
+      };
     },
 
     async setAppVolume(bundleId, volume) {
-      const script = PLAYER_SCRIPTS[bundleId]?.setVolume;
-      if (!script) throw Object.assign(new Error("That app doesn't let MacDoc change its volume yet."), { status: 409 });
       if (!Number.isInteger(volume) || volume < 0 || volume > 100) throw Object.assign(new Error("volume must be 0..100"), { status: 400 });
+      const script = PLAYER_SCRIPTS[bundleId]?.setVolume;
+      if (!script) return mixer.set(bundleId, { volume });
+      scriptMuted.delete(bundleId);
       await exec("osascript", ["-e", "on run argv\n" + tell(bundleId, script) + "\nend run", String(volume)]);
+      return { volume, muted: false };
+    },
+
+    async setAppMute(bundleId, muted) {
+      if (typeof muted !== "boolean") throw Object.assign(new Error("muted must be true or false"), { status: 400 });
+      const script = PLAYER_SCRIPTS[bundleId]?.setVolume;
+      if (!script) return mixer.set(bundleId, { muted });
+      // Players go to 0 and back, so muting never needs the recording permission.
+      if (muted === scriptMuted.has(bundleId)) return { muted };
+      const restore = muted ? null : scriptMuted.get(bundleId);
+      if (muted) scriptMuted.set(bundleId, (await playerVolume(bundleId)) ?? 100);
+      else scriptMuted.delete(bundleId);
+      await exec("osascript", ["-e", "on run argv\n" + tell(bundleId, script) + "\nend run", String(muted ? 0 : restore)]);
+      return { muted };
+    },
+
+    dispose() {
+      mixer.dispose();
     },
 
     async readClipboard() {
