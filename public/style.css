@@ -540,7 +540,7 @@ body.is-paired:not(.has-welcome) .dock-gear { display: grid; }
 body.is-arranging .dock-gear, body.has-panel .edge-handle, body.has-panel .dock-gear, body.has-panel .drawer-trigger { display: none; }
 
 /* Side pages */
-.panel { position: fixed; inset: 0; z-index: 8; overflow-y: auto; background: radial-gradient(ellipse at 20% 10%, #24423a 0%, transparent 55%), radial-gradient(ellipse at 90% 100%, #1a2b47 0%, transparent 60%), #0b1113f2; backdrop-filter: blur(30px); transition: transform .32s cubic-bezier(.2, .9, .2, 1), opacity .32s; opacity: 0; }
+.panel { position: fixed; inset: 0; z-index: 8; overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; background: radial-gradient(ellipse at 20% 10%, #24423a 0%, transparent 55%), radial-gradient(ellipse at 90% 100%, #1a2b47 0%, transparent 60%), #0b1113f2; backdrop-filter: blur(30px); transition: transform .32s cubic-bezier(.2, .9, .2, 1), opacity .32s; opacity: 0; }
 .panel--left { transform: translateX(-100%); }
 .panel--right { transform: translateX(100%); }
 .panel.is-open { transform: none; opacity: 1; }

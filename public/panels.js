@@ -67,20 +67,43 @@ export function createPanels({ api, notify, report, clipboard, isReady }) {
   edgeSwipe($("edge-left"), "left", 1);
   edgeSwipe($("edge-right"), "right", -1);
 
-  for (const [name, panel] of Object.entries(panels)) {
-    let start = null;
+  // Swipe a page back toward the edge it came from. It follows the finger, then
+  // closes past a quarter of the screen or on a quick flick, or springs back.
+  for (const panel of Object.values(panels)) {
+    let drag = null, suppressClick = 0;
+    const reset = () => { panel.style.transition = ""; panel.style.transform = ""; };
     panel.addEventListener("pointerdown", (event) => {
-      if (event.target.closest("input, textarea, button, a, [data-clip]")) return;
-      start = { id: event.pointerId, x: event.clientX, y: event.clientY };
+      if (event.button > 0 || event.target.closest("input, textarea, select")) return;
+      drag = { id: event.pointerId, x: event.clientX, y: event.clientY, t: performance.now(), moving: false, offset: 0 };
+    });
+    panel.addEventListener("pointermove", (event) => {
+      if (drag?.id !== event.pointerId) return;
+      const closing = panel.dataset.side === "left" ? -1 : 1;
+      const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+      if (!drag.moving) {
+        if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { drag = null; return; } // a vertical scroll
+        if (Math.abs(dx) < 10 || dx * closing <= 0) return;
+        drag.moving = true;
+        panel.style.transition = "none";
+        try { panel.setPointerCapture(event.pointerId); } catch { /* already released */ }
+      }
+      drag.offset = Math.max(0, dx * closing);
+      panel.style.transform = `translateX(${drag.offset * closing}px)`;
     });
     panel.addEventListener("pointerup", (event) => {
-      if (start?.id !== event.pointerId) return;
-      const closing = panel.dataset.side === "left" ? -1 : 1; // swipe back toward the edge it came from
-      const dx = (event.clientX - start.x) * closing, dy = Math.abs(event.clientY - start.y);
-      start = null;
-      if (dx > SWIPE * 1.5 && dx > dy * 1.5) close();
+      if (drag?.id !== event.pointerId) return;
+      const { moving, offset, t } = drag;
+      drag = null;
+      if (!moving) return;
+      suppressClick = Date.now() + 350; // a drag that started on a button is not a tap
+      const fast = offset / Math.max(1, performance.now() - t) > 0.6;
+      if (offset > innerWidth * 0.25 || (fast && offset > 40)) { reset(); close(); }
+      else reset();
     });
-    panel.addEventListener("pointercancel", () => { start = null; });
+    panel.addEventListener("pointercancel", () => { drag = null; reset(); });
+    panel.addEventListener("click", (event) => {
+      if (Date.now() < suppressClick) { event.preventDefault(); event.stopPropagation(); }
+    }, true);
     panel.querySelector("[data-panel-close]").addEventListener("click", () => close());
   }
   addEventListener("keydown", (event) => { if (event.key === "Escape" && openName) close(); });
