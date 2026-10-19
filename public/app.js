@@ -1,11 +1,12 @@
 import { renderNowPlaying, renderControlPicker, renderAppIcon, renderControls, escapeHtml } from "./dock.js";
 import { icon, controlIcon } from "./icons.js";
 import { addAppTile, addControlTile, removeTile, moveTile, toWireTiles, availableControls, tileKey } from "./tiles.js";
-import { GRIDS, normalizeLayout, renderPages, pageCount, moveToTile } from "./launcher.js";
+import { GRIDS, normalizeLayout, renderPages, pageCount, moveToTile, movePage } from "./launcher.js";
 import { createInputPad } from "./input-pad.js";
 import { createNowPlayingPoller } from "./now-playing.js";
 import { createClipboardSheet } from "./clipboard.js";
 import { createWelcome, playIntro } from "./welcome.js";
+import { createPanels } from "./panels.js";
 
 const $ = (id) => document.getElementById(id);
 let state = { tiles: [], running: [], verbs: [] };
@@ -22,6 +23,7 @@ const nowPlaying = createNowPlayingPoller({
     const html = renderNowPlaying(media);
     // Keep the playback button (and its focus) when nothing has changed.
     if (nowPlayingHtml !== html) { $("nowplaying").innerHTML = html; nowPlayingHtml = html; }
+    panels.update(media);
   },
 });
 let layout;
@@ -108,6 +110,7 @@ async function api(path, options = {}) {
   return res.json();
 }
 function showPair(message = "") {
+  document.body.classList.remove("is-paired"); panels?.close(true);
   welcome.sync(state, false);
   paired = false;
   paintCapture();
@@ -119,7 +122,7 @@ function showPair(message = "") {
   $("app").hidden = true;
   $("pair-error").textContent = message;
 }
-function showApp() { paired = true; $("pair").hidden = true; $("app").hidden = false; syncLayout(); paintCapture(); showPairingInfo(); }
+function showApp() { paired = true; document.body.classList.add("is-paired"); $("pair").hidden = true; $("app").hidden = false; syncLayout(); paintCapture(); showPairingInfo(); }
 // Only the host's own browser is given the PIN; other devices get 403 and see nothing.
 async function showPairingInfo() {
   try {
@@ -325,7 +328,7 @@ async function openPicker() {
     if ($("tab-apps").getAttribute("aria-selected") === "true") drawApps();
   } catch (error) { $("picker-status").textContent = "Couldn’t load apps. Close the library and try again."; report(error); }
 }
-function openSettings() { $("drawer").close(); syncLayout(); if (!$("settings").open) $("settings").showModal(); }
+function openSettings() { $("drawer").close(); panels.close(true); syncLayout(); renderPagesList(); if (!$("settings").open) $("settings").showModal(); }
 function openDrawer() { if (paired && !$("drawer").open) { $("drawer").showModal(); startStats(); } }
 let statsTimer = null;
 function formatStats(stats) {
@@ -525,7 +528,32 @@ $("drawer-apps").addEventListener("click", () => { $("drawer").close(); openPick
 $("drawer-controls").addEventListener("click", () => { $("drawer").close(); $("controls-grid").innerHTML = renderControls(state.verbs, state.allowDestructive); $("controls").showModal(); });
 $("drawer-capture").addEventListener("click", openCapture);
 const clipboardSheet = createClipboardSheet({ api, notify, hostName: () => state.hostName || "your computer" });
-$("drawer-clipboard").addEventListener("click", () => { $("drawer").close(); clipboardSheet.open().catch(report); });
+const panels = createPanels({ api, notify, report, clipboard: clipboardSheet, isReady: () => paired && !document.body.classList.contains("has-welcome") });
+$("drawer-clipboard").addEventListener("click", () => { $("drawer").close(); panels.open("mixer"); });
+$("dock-gear").addEventListener("click", openSettings);
+$("pages-arrange").addEventListener("click", () => { $("settings").close(); if (!editing) toggleEditing(); });
+$("pages-list").addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-page-move]");
+  if (!button || saving) return;
+  const capacity = layout.columns * layout.rows;
+  const moved = movePage(state.tiles, Number(button.dataset.page), Number(button.dataset.pageMove), capacity);
+  if (!moved) return;
+  try { await commitTiles(moved); currentPage = Number(button.dataset.page) + Number(button.dataset.pageMove); renderPagesList(); paint(); }
+  catch (error) { report(error); }
+});
+function renderPagesList() {
+  const capacity = layout.columns * layout.rows;
+  const pages = pageCount(state.tiles, layout);
+  const full = (index) => (index + 1) * capacity <= state.tiles.length;
+  $("pages-list").innerHTML = state.tiles.length ? Array.from({ length: pages }, (_, index) => {
+    const tiles = state.tiles.slice(index * capacity, (index + 1) * capacity);
+    const strip = tiles.slice(0, 10).map((tile) => tile.kind === "app" ? renderAppIcon(tile) : '<span class="pages__control">' + controlIcon(tile.verb) + "</span>").join("");
+    const canMove = (delta) => full(index) && index + delta >= 0 && index + delta < pages && full(index + delta);
+    return '<li><span class="pages__name">Page ' + (index + 1) + "<small>" + tiles.length + " of " + capacity + "</small></span><span class=\"pages__strip\">" + strip + "</span>" +
+      '<span class="pages__moves"><button type="button" class="icon-button" data-page="' + index + '" data-page-move="-1" aria-label="Move page ' + (index + 1) + ' left"' + (canMove(-1) ? "" : " disabled") + ">" + icon("left") + "</button>" +
+      '<button type="button" class="icon-button" data-page="' + index + '" data-page-move="1" aria-label="Move page ' + (index + 1) + ' right"' + (canMove(1) ? "" : " disabled") + ">" + icon("right") + "</button></span></li>";
+  }).join("") : '<li class="pages__empty">Add apps to your dock to see its pages here.</li>';
+}
 $("drawer").addEventListener("close", () => clearInterval(statsTimer));
 const inputPad = createInputPad({ api, notify, WebSocketClass: WebSocket, storage: localStorage });
 $("drawer-input").addEventListener("click", () => inputPad.open());

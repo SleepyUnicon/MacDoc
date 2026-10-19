@@ -9,7 +9,23 @@ export const GRIDS = Object.freeze({
   12: { columns: 4, rows: 3, iconSize: 112, scale: .27 },
   15: { columns: 5, rows: 3, iconSize: 100, scale: .24 },
   18: { columns: 6, rows: 3, iconSize: 92, scale: .21 },
+  21: { columns: 7, rows: 3, iconSize: 84, scale: .19 },
+  24: { columns: 6, rows: 4, iconSize: 80, scale: .17 },
+  28: { columns: 7, rows: 4, iconSize: 72, scale: .155 },
+  32: { columns: 8, rows: 4, iconSize: 66, scale: .145 },
 });
+
+/** Swap two whole pages. Only full pages move, so no page gains a gap. */
+export function movePage(tiles, page, delta, capacity) {
+  const target = page + delta;
+  const pages = Math.ceil(tiles.length / capacity);
+  if (target < 0 || target >= pages || page < 0 || page >= pages) return null;
+  const full = (index) => (index + 1) * capacity <= tiles.length;
+  if (!full(page) || !full(target)) return null;
+  const chunks = Array.from({ length: pages }, (_, index) => tiles.slice(index * capacity, (index + 1) * capacity));
+  [chunks[page], chunks[target]] = [chunks[target], chunks[page]];
+  return chunks.flat();
+}
 
 export function normalizeLayout(value = {}) {
   // Upgrade earlier row/column preferences to one of the supported grids.

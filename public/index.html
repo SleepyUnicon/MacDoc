@@ -56,6 +56,62 @@
   <footer class="welcome__foot"><button id="welcome-done" class="button button--primary" type="button" disabled>Open my dock <span data-icon="arrow"></span></button></footer>
 </section>
 
+<button id="edge-left" class="edge-handle edge-handle--left" type="button" aria-label="Open the music player"><span></span></button>
+<button id="edge-right" class="edge-handle edge-handle--right" type="button" aria-label="Open clipboard and sound"><span></span></button>
+<button id="dock-gear" class="dock-gear" type="button" aria-label="Dock settings" title="Dock settings"><span data-icon="gear"></span></button>
+
+<section id="player-panel" class="panel panel--left" aria-label="Now playing" hidden>
+  <div class="player">
+    <div class="player__art"><img id="player-art" alt="" hidden><span id="player-art-empty" data-icon="music"></span></div>
+    <div class="player__body">
+      <p id="player-app" class="eyebrow">Nothing playing</p>
+      <h2 id="player-title">Play something on your Mac</h2>
+      <p id="player-artist" class="player__artist">Music, podcasts and videos from any app show up here.</p>
+      <div class="player__progress" aria-hidden="true"><span id="player-elapsed">0:00</span><div class="player__bar"><i id="player-bar"></i></div><span id="player-duration">0:00</span></div>
+      <div class="player__controls">
+        <button type="button" data-player="media-previous" aria-label="Previous"><span data-icon="previous"></span></button>
+        <button type="button" data-player="media-play-pause" class="player__play" aria-label="Play or pause"><span id="player-toggle" data-icon="play"></span></button>
+        <button type="button" data-player="media-next" aria-label="Next"><span data-icon="next"></span></button>
+      </div>
+      <div class="player__volume"><button id="player-mute" type="button" aria-label="Mute"><span data-icon="volume"></span></button><input id="player-volume" type="range" min="0" max="100" step="1" aria-label="Mac volume"><span id="player-volume-value">–</span></div>
+      <p id="player-note" class="player__note" role="status"></p>
+    </div>
+  </div>
+  <button class="panel__close panel__close--left" type="button" data-panel-close aria-label="Close player"><span data-icon="left"></span></button>
+</section>
+
+<section id="mixer-panel" class="panel panel--right" aria-label="Clipboard and sound" hidden>
+  <button class="panel__close panel__close--right" type="button" data-panel-close aria-label="Close"><span data-icon="right"></span></button>
+  <div class="mixer">
+    <div class="mixer__col">
+      <header class="mixer__head"><span data-icon="clipboard"></span><div><h2 id="clipboard-title">Clipboard</h2><p id="clipboard-status" role="status">Updates automatically while this is open.</p></div></header>
+      <div class="clipboard">
+        <section class="clipboard__card">
+          <h3 id="clipboard-host-title">On your Mac</h3>
+          <p id="clipboard-current" class="clipboard__current is-empty">Nothing copied yet.</p>
+          <button id="clipboard-copy" class="button" type="button" disabled><span data-icon="check"></span>Copy to this device</button>
+        </section>
+        <section class="clipboard__card">
+          <h3>From this device</h3>
+          <textarea id="clipboard-draft" class="clipboard__draft" rows="2" maxlength="20000" placeholder="Type or paste text to send" aria-label="Text to send"></textarea>
+          <div class="clipboard__actions"><button id="clipboard-paste" class="button" type="button"><span data-icon="clipboard"></span>Paste &amp; send</button><button id="clipboard-send" class="button" type="button"><span data-icon="arrow"></span>Send</button></div>
+        </section>
+        <div class="clipboard__history-heading"><h3>Recent</h3><button id="clipboard-clear" class="clipboard__clear" type="button" hidden>Clear</button></div>
+        <ul id="clipboard-history" class="clipboard__history" aria-label="Recent clipboard items. Tap one to copy it again."></ul>
+      </div>
+    </div>
+    <div class="mixer__col">
+      <header class="mixer__head"><span data-icon="volume"></span><div><h2>Sound</h2><p id="mixer-status" role="status">What's playing on your Mac, and how loud.</p></div></header>
+      <div class="mixer__output">
+        <div class="mixer__row-head"><strong>Mac output</strong><span id="mixer-output-value">–</span></div>
+        <div class="mixer__slider"><button id="mixer-mute" type="button" aria-label="Mute the Mac"><span data-icon="volume"></span></button><input id="mixer-output" type="range" min="0" max="100" step="1" aria-label="Mac output volume"></div>
+      </div>
+      <ul id="mixer-apps" class="mixer__apps" aria-label="Apps with sound"></ul>
+      <p class="mixer__note">Spotify, Music, QuickTime and VLC have their own volume here. Other apps follow the Mac's volume.</p>
+    </div>
+  </div>
+</section>
+
 <main id="app" class="app" hidden>
   <header class="bar">
     <div class="brand"><span data-icon="grid"></span>MacDoc<span class="brand__dot"></span></div>
@@ -109,24 +165,7 @@
   <p class="capture-tip">Recordings stop after 60 minutes. You can also stop from the Windows tray.</p>
 </dialog>
 
-<dialog id="clipboard" class="sheet clipboard-sheet" aria-labelledby="clipboard-title">
-  <div class="sheet-handle"></div>
-  <div class="sheet__heading"><div><h2 id="clipboard-title">Clipboard</h2><p id="clipboard-status" class="capture-subtitle" role="status">Updates automatically while this is open.</p></div><button class="icon-button" type="button" data-close="clipboard" aria-label="Close clipboard"><span data-icon="close"></span></button></div>
-  <div class="clipboard__columns">
-    <section class="clipboard__card">
-      <h3 id="clipboard-host-title">On your Mac</h3>
-      <p id="clipboard-current" class="clipboard__current is-empty">Nothing copied yet.</p>
-      <button id="clipboard-copy" class="button" type="button" disabled><span data-icon="check"></span>Copy to this device</button>
-    </section>
-    <section class="clipboard__card">
-      <h3>From this device</h3>
-      <textarea id="clipboard-draft" class="clipboard__draft" rows="3" maxlength="20000" placeholder="Type or paste text to send" aria-label="Text to send"></textarea>
-      <div class="clipboard__actions"><button id="clipboard-paste" class="button" type="button"><span data-icon="clipboard"></span>Paste &amp; send</button><button id="clipboard-send" class="button" type="button"><span data-icon="arrow"></span>Send</button></div>
-    </section>
-  </div>
-  <div class="clipboard__history-heading"><h3>Recent</h3><button id="clipboard-clear" class="clipboard__clear" type="button" hidden>Clear</button></div>
-  <ul id="clipboard-history" class="clipboard__history" aria-label="Recent clipboard items. Tap one to copy it again."></ul>
-</dialog>
+
 
 <dialog id="input-pad" class="input-pad" data-mode="touchpad" aria-label="Touchpad and signature">
   <header class="input-pad__header">
@@ -193,6 +232,10 @@
         <button type="button" data-per-page="12" aria-pressed="false"><span class="mini-grid" style="--mini-columns:4"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>12 icons</span></button>
         <button type="button" data-per-page="15" aria-pressed="false"><span class="mini-grid" style="--mini-columns:5"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>15 icons</span></button>
         <button type="button" data-per-page="18" aria-pressed="false"><span class="mini-grid" style="--mini-columns:6"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>18 icons</span></button>
+        <button type="button" data-per-page="21" aria-pressed="false"><span class="mini-grid" style="--mini-columns:7"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>21 icons</span></button>
+        <button type="button" data-per-page="24" aria-pressed="false"><span class="mini-grid" style="--mini-columns:6"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>24 icons</span></button>
+        <button type="button" data-per-page="28" aria-pressed="false"><span class="mini-grid" style="--mini-columns:7"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>28 icons</span></button>
+        <button type="button" data-per-page="32" aria-pressed="false"><span class="mini-grid" style="--mini-columns:8"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>32 icons</span></button>
       </div>
       <label class="setting-row">Immersive mode<input id="immersive" class="switch" type="checkbox" role="switch" checked></label>
       <label class="setting-row">App names<input id="show-labels" class="switch" type="checkbox" role="switch"></label>
@@ -208,7 +251,11 @@
       <label class="setting-row" for="glass-theme">Glass style<select id="glass-theme"><option value="glass">Clear</option><option value="frost">Frosted</option><option value="smoke">Smoked</option></select></label>
       <div class="settings__utilities"><button id="fullscreen" class="button" type="button"><span data-icon="monitor"></span>Fullscreen</button><button id="refresh" class="button" type="button"><span data-icon="refresh"></span>Refresh</button></div>
     </section>
-  </div>
+      <section class="settings__card settings__card--wide"><div class="pages__head"><h3>Pages</h3><button id="pages-arrange" class="button button--small" type="button"><span data-icon="edit"></span>Arrange icons</button></div>
+      <p class="settings__tip">Move whole pages left or right. To move single icons, tap Arrange icons, then drag.</p>
+      <ol id="pages-list" class="pages__list"></ol>
+    </section>
+</div>
 </dialog>
 
 <dialog id="controls" class="sheet" aria-labelledby="controls-title">

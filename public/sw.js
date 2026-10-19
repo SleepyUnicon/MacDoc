@@ -9,7 +9,7 @@
  *    worse, replay a control action from cache. Neither is acceptable.
  */
 
-const VERSION = "macdoc-v4-0.3.0";
+const VERSION = "macdoc-v5-0.4.0";
 const SHELL = [
   "/",
   "/index.html",
@@ -25,6 +25,7 @@ const SHELL = [
   "/remote-keyboard.js",
   "/clipboard.js",
   "/welcome.js",
+  "/panels.js",
   "/manifest.webmanifest",
   "/icon-192.png",
   "/icon-512.png",

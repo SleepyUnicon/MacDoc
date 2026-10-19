@@ -97,6 +97,73 @@ function playerCommand(player, command) {
   return ["osascript", ["-e", `tell application "${player}" to ${command}`]];
 }
 
+/**
+ * Fixed JXA source reading macOS's own now-playing service, which knows what
+ * any app is playing (browsers, Spotify, Music, QuickTime, podcasts...).
+ * `osascript` is an Apple binary, which this service still answers.
+ * argv[0] === "art" returns the artwork as base64 instead of the details.
+ */
+const NOW_PLAYING_SCRIPT = `ObjC.import("Foundation");
+function run(argv) {
+  $.NSBundle.bundleWithPath("/System/Library/PrivateFrameworks/MediaRemote.framework").load;
+  const R = $.NSClassFromString("MRNowPlayingRequest");
+  if (!R || R.isNil()) return "{}";
+  const item = R.localNowPlayingItem;
+  if (!item || item.isNil()) return "{}";
+  const info = item.nowPlayingInfo;
+  if (!info || info.isNil()) return "{}";
+  const key = (name) => info.objectForKey("kMRMediaRemoteNowPlayingInfo" + name);
+  if (argv[0] === "art") {
+    const data = key("ArtworkData");
+    if (!data || data.isNil()) return "";
+    const mime = key("ArtworkMIMEType");
+    return (mime && !mime.isNil() ? ObjC.unwrap(mime) : "image/jpeg") + ";" + ObjC.unwrap(data.base64EncodedStringWithOptions(0));
+  }
+  const text = (name) => { const v = key(name); return v && !v.isNil() ? String(ObjC.unwrap(v)) : ""; };
+  const number = (name) => { const v = key(name); return v && !v.isNil() ? Number(ObjC.unwrap(v)) : null; };
+  const stamp = key("Timestamp");
+  const url = key("AssetURL");
+  const out = {
+    title: text("Title"), artist: text("Artist"), album: text("Album"),
+    duration: number("Duration"), elapsed: number("ElapsedTime"), rate: number("PlaybackRate"),
+    at: stamp && !stamp.isNil() ? stamp.timeIntervalSince1970 * 1000 : null,
+    file: url && !url.isNil() ? String(ObjC.unwrap(url.lastPathComponent)) : "",
+    artwork: !!(key("ArtworkData") && !key("ArtworkData").isNil()),
+    playing: R.localIsPlaying,
+  };
+  try { const client = R.localNowPlayingPlayerPath.client; out.bundleId = ObjC.unwrap(client.bundleIdentifier) || ""; out.appName = ObjC.unwrap(client.displayName) || ""; } catch (e) {}
+  return JSON.stringify(out);
+}`;
+
+/** Posts a hardware media key (16 play/pause, 17 next, 18 previous); needs Accessibility. */
+const MEDIA_KEY_SCRIPT = `ObjC.import("AppKit");
+ObjC.import("CoreGraphics");
+function run(argv) {
+  const key = Number(argv[0]);
+  for (const flags of [0xa00, 0xb00]) {
+    const event = $.NSEvent.otherEventWithTypeLocationModifierFlagsTimestampWindowNumberContextSubtypeData1Data2(14, $.NSMakePoint(0, 0), flags, 0, 0, $(), 8, (key << 16) | flags, -1);
+    $.CGEventPost(0, event.CGEvent);
+  }
+}`;
+
+const tell = (bundleId, body) => `tell application id "${bundleId}"\n${body}\nend tell`;
+
+/**
+ * Players MacDoc can drive through their own scripting, keyed by bundle id.
+ * Every script is a fixed string; volume values travel as argv.
+ */
+export const PLAYER_SCRIPTS = Object.freeze({
+  "com.spotify.client": { toggle: "playpause", next: "next track", previous: "previous track", stop: "pause", getVolume: "sound volume", setVolume: "set sound volume to (item 1 of argv as integer)" },
+  "com.apple.Music": { toggle: "playpause", next: "next track", previous: "previous track", stop: "pause", getVolume: "sound volume", setVolume: "set sound volume to (item 1 of argv as integer)" },
+  "com.apple.TV": { toggle: "playpause", next: "next track", previous: "previous track", stop: "pause" },
+  "com.apple.QuickTimePlayerX": { toggle: "tell document 1 to if playing then\npause\nelse\nplay\nend if", stop: "tell document 1 to pause", getVolume: "(audio volume of document 1) * 100 as integer", setVolume: "set audio volume of document 1 to ((item 1 of argv as integer) / 100)" },
+  "org.videolan.vlc": { toggle: "play", next: "next", previous: "previous", stop: "stop", getVolume: "(audio volume * 100 / 256) as integer", setVolume: "set audio volume to ((item 1 of argv as integer) * 256 / 100) as integer" },
+});
+const MEDIA_ACTIONS = { "media-play-pause": ["toggle", 16], "media-next": ["next", 17], "media-previous": ["previous", 18], "media-stop": ["stop", 16] };
+
+/** Built by `npm run build:mac`; MACDOC_AUDIO_HELPER overrides the location. */
+export const MAC_AUDIO_HELPER = process.env.MACDOC_AUDIO_HELPER || fileURLToPath(new URL("../../MacDocAudio", import.meta.url));
+
 /** Fixed JXA source; the bundle path and output file arrive as argv. */
 const ICON_SCRIPT = `ObjC.import("AppKit");
 function run(argv) {
@@ -142,7 +209,7 @@ function createCpuMeter() {
 /** Built by `npm run build:mac`; MACDOC_INPUT_HELPER overrides the location. */
 export const MAC_INPUT_HELPER = process.env.MACDOC_INPUT_HELPER || fileURLToPath(new URL("../../MacDocInput", import.meta.url));
 
-export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_APPS, inputHelperPath = MAC_INPUT_HELPER, spawn } = {}) {
+export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_APPS, inputHelperPath = MAC_INPUT_HELPER, audioHelperPath = MAC_AUDIO_HELPER, spawn } = {}) {
   if (typeof exec !== "function") throw new Error("macos provider requires exec");
   // pbpaste falls back to a legacy encoding without a UTF-8 locale.
   if (!/UTF-8/i.test(process.env.LC_ALL || process.env.LANG || "")) process.env.LANG = "en_US.UTF-8";
@@ -151,6 +218,28 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
   async function running() {
     const { stdout } = await exec("ps", ["-axo", "pid=,comm="]);
     return parseMacPs(stdout);
+  }
+
+  async function mediaNow() {
+    try {
+      const { stdout } = await exec("osascript", ["-l", "JavaScript", "-e", NOW_PLAYING_SCRIPT, "info"]);
+      const raw = JSON.parse(String(stdout).trim() || "{}");
+      if (!raw.bundleId && !raw.title) return null;
+      return raw;
+    } catch {
+      return null;
+    }
+  }
+
+  async function playerVolume(bundleId) {
+    const script = PLAYER_SCRIPTS[bundleId]?.getVolume;
+    if (!script) return null;
+    try {
+      const value = Number(String((await exec("osascript", ["-e", tell(bundleId, "return " + script)])).stdout).trim());
+      return Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : null;
+    } catch {
+      return null;
+    }
   }
 
   async function activePlayer() {
@@ -231,29 +320,86 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
       }
       const build = MAC_CONTROL[checked.verb];
       if (!build) throw new Error(`unmapped control verb: ${checked.verb}`);
-      const player = checked.verb.startsWith("media-") ? await activePlayer() : null;
-      const [file, args] = build(checked.value, player);
+      if (MEDIA_ACTIONS[checked.verb]) {
+        // Drive whichever app macOS says is playing; fall back to the media key.
+        const [action, mediaKey] = MEDIA_ACTIONS[checked.verb];
+        const now = await mediaNow();
+        const script = PLAYER_SCRIPTS[now?.bundleId]?.[action];
+        if (script) await exec("osascript", ["-e", tell(now.bundleId, script)]);
+        else if (!now && await activePlayer()) await exec(...build(checked.value, await activePlayer()));
+        else await exec("osascript", ["-l", "JavaScript", "-e", MEDIA_KEY_SCRIPT, String(mediaKey)]);
+        return { ok: true, verb: checked.verb };
+      }
+      const [file, args] = build(checked.value, null);
       await exec(file, args);
       return { ok: true, verb: checked.verb };
     },
 
     async nowPlaying() {
-      // Only ask a player that is already open, so polling never launches one.
-      const player = await activePlayer();
-      if (!player) return null;
+      const now = await mediaNow();
+      if (!now) return null;
+      const title = now.title || now.file.replace(/\.[a-z0-9]+$/i, "") || now.appName;
+      if (!title) return null;
+      return {
+        title,
+        artist: now.artist || (now.title ? "" : now.appName) || "",
+        album: now.album || "",
+        app: now.appName || "",
+        bundleId: now.bundleId || "",
+        playing: Boolean(now.playing),
+        duration: Number.isFinite(now.duration) && now.duration > 0 ? now.duration : null,
+        // Report the position as of now, so devices with a different clock can count on from it.
+        elapsed: Number.isFinite(now.elapsed)
+          ? now.elapsed + (now.playing && Number.isFinite(now.at) ? Math.max(0, (Date.now() - now.at) / 1000) * (now.rate || 1) : 0)
+          : null,
+        rate: Number.isFinite(now.rate) ? now.rate : (now.playing ? 1 : 0),
+        artwork: Boolean(now.artwork),
+        controllable: Boolean(PLAYER_SCRIPTS[now.bundleId]),
+      };
+    },
+
+    async nowPlayingArtwork() {
       try {
-        const { stdout } = await exec("osascript", ["-e", [
-          `tell application "${player}"`,
-          "if player state is stopped then return \"\"",
-          "return (player state as text) & tab & (artist of current track) & tab & (name of current track)",
-          "end tell",
-        ].join("\n")]);
-        const [status, artist, title] = String(stdout).trim().split("\t");
-        if (!title) return null;
-        return { title, artist: artist || "", playing: status === "playing" };
+        const out = String((await exec("osascript", ["-l", "JavaScript", "-e", NOW_PLAYING_SCRIPT, "art"])).stdout).trim();
+        const split = out.indexOf(";");
+        if (split < 1) return null;
+        const type = out.slice(0, split);
+        if (!/^image\/(png|jpeg|jpg|gif|webp|heic)$/i.test(type)) return null;
+        return { type: type.toLowerCase(), data: Buffer.from(out.slice(split + 1), "base64") };
       } catch {
         return null;
       }
+    },
+
+    async audioMixer() {
+      const [output, listed] = await Promise.all([
+        exec("osascript", ["-e", "set s to get volume settings\nreturn (output volume of s as text) & \",\" & (output muted of s as text)"])
+          .then(({ stdout }) => { const [volume, muted] = String(stdout).trim().split(","); return { volume: Number(volume), muted: muted === "true" }; })
+          .catch(() => ({ volume: null, muted: false })),
+        exec(audioHelperPath, ["list"]).then(({ stdout }) => JSON.parse(stdout)).catch(() => null),
+      ]);
+      const apps = [];
+      for (const entry of listed || []) {
+        const adjustable = Boolean(PLAYER_SCRIPTS[entry.bundleId]?.setVolume);
+        // Show what is making sound now, plus players MacDoc can turn up or down.
+        if (!entry.playing && !adjustable) continue;
+        apps.push({
+          id: appIdFromBundle(entry.app),
+          name: entry.name,
+          bundleId: entry.bundleId,
+          playing: Boolean(entry.playing),
+          adjustable,
+          volume: adjustable ? await playerVolume(entry.bundleId) : null,
+        });
+      }
+      return { output, apps, helper: listed !== null };
+    },
+
+    async setAppVolume(bundleId, volume) {
+      const script = PLAYER_SCRIPTS[bundleId]?.setVolume;
+      if (!script) throw Object.assign(new Error("That app doesn't let MacDoc change its volume yet."), { status: 409 });
+      if (!Number.isInteger(volume) || volume < 0 || volume > 100) throw Object.assign(new Error("volume must be 0..100"), { status: 400 });
+      await exec("osascript", ["-e", "on run argv\n" + tell(bundleId, script) + "\nend run", String(volume)]);
     },
 
     async readClipboard() {

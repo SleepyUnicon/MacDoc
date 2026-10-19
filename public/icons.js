@@ -8,6 +8,7 @@ const paths = {
   monitor: '<rect x="3" y="4" width="18" height="13" rx="3"/><path d="M8 21h8m-4-4v4"/>',
   sliders: '<path d="M5 3v7m0 4v7M12 3v12m0 4v2M19 3v2m0 4v12M2 10h6m1 5h6m1-10h6"/>',
   clipboard: '<rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 4V3h6v1M9 10h6m-6 4h6m-6 4h3"/>',
+  gear: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4m0 13.6v2.4M2.8 12h2.4m13.6 0h2.4M5.5 5.5l1.7 1.7m9.6 9.6 1.7 1.7M5.5 18.5l1.7-1.7m9.6-9.6 1.7-1.7"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   close: '<path d="m6 6 12 12M18 6 6 18"/>',
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',

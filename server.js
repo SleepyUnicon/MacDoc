@@ -320,6 +320,26 @@ export async function createApp({
         return sendJson(res, 200, await provider.capture[captureActions[path]]());
       }
 
+      if (path === "/api/nowplaying/artwork" && req.method === "GET") {
+        const art = await provider.nowPlayingArtwork?.().catch(() => null);
+        if (!art) return sendJson(res, 404, { error: "no artwork" });
+        res.writeHead(200, { "content-type": art.type, "content-length": art.data.length, "cache-control": "private, max-age=300", "x-content-type-options": "nosniff" });
+        return res.end(art.data);
+      }
+
+      if (path === "/api/audio" && req.method === "GET") {
+        if (!provider.audioMixer) return sendJson(res, 501, { error: "Per-app audio is available on macOS." });
+        return sendJson(res, 200, await provider.audioMixer());
+      }
+      if (path === "/api/audio/app" && req.method === "POST") {
+        const body = await readJsonBody(req);
+        if (typeof body.bundleId !== "string" || !/^[A-Za-z0-9.-]{1,200}$/.test(body.bundleId)) return sendJson(res, 400, { error: "bundleId required" });
+        if (!Number.isInteger(body.volume) || body.volume < 0 || body.volume > 100) return sendJson(res, 400, { error: "volume must be 0..100" });
+        if (!provider.setAppVolume) return sendJson(res, 501, { error: "Per-app audio is available on macOS." });
+        await provider.setAppVolume(body.bundleId, body.volume);
+        return sendJson(res, 200, { ok: true });
+      }
+
       if (path === "/api/clipboard" && req.method === "GET") {
         return sendJson(res, 200, await clipboard.snapshot());
       }

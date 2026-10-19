@@ -29,3 +29,4 @@ android/**/build/
 ios/MacDoc.xcodeproj/
 ios/build/
 ios/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+MacDocAudio

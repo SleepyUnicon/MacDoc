@@ -27,8 +27,8 @@ function ago(at) {
 }
 
 export function createClipboardSheet({ api, notify, hostName = () => "your Mac" }) {
-  const $ = (id) => document.getElementById(id), dialog = $("clipboard");
-  let snapshot = { available: false, text: "", history: [] }, timer = null, painted = "";
+  const $ = (id) => document.getElementById(id);
+  let snapshot = { available: false, text: "", history: [] }, timer = null, painted = "", active = false;
 
   function paint() {
     const key = JSON.stringify(snapshot);
@@ -77,16 +77,17 @@ export function createClipboardSheet({ api, notify, hostName = () => "your Mac" 
     try { snapshot = await api("/api/clipboard/history", { method: "DELETE" }); paint(); notify("Clipboard history cleared"); }
     catch (error) { notify(error.message, true); }
   });
-  dialog.addEventListener("close", stop);
-  document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); else if (dialog.open && !timer) timer = setInterval(() => refresh().catch(stop), POLL_MS); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); else if (active && !timer) timer = setInterval(() => refresh().catch(stop), POLL_MS); });
 
   return {
+    /** Starts live updates while the clipboard is on screen. */
     async open() {
+      active = true;
       $("clipboard-status").textContent = "Updates automatically while this is open.";
-      if (!dialog.open) dialog.showModal();
       stop();
       await refresh();
       timer = setInterval(() => refresh().catch(stop), POLL_MS);
     },
+    close() { active = false; stop(); },
   };
 }

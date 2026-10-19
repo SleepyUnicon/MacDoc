@@ -5,6 +5,8 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.graphics.Bitmap
+import android.graphics.Rect
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -132,8 +134,29 @@ class MainActivity : Activity() {
                 return true
             }
         }
+        reserveEdgeSwipes()
         hideSystemBars()
         connect()
+    }
+
+    /**
+     * The dock opens its music player and sound pages with swipes in from the
+     * left and right edges, where gesture navigation would otherwise take them
+     * as Back. Android lets an app keep up to 200dp of each edge; MacDoc keeps
+     * the middle band, which the dock marks with small handles.
+     */
+    private fun reserveEdgeSwipes() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        web.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+            val dp = resources.displayMetrics.density
+            val band = (200 * dp).toInt()
+            val edge = (40 * dp).toInt()
+            val top = (view.height - band) / 2
+            view.systemGestureExclusionRects = listOf(
+                Rect(0, top, edge, top + band),
+                Rect(view.width - edge, top, view.width, top + band),
+            )
+        }
     }
 
     private fun hideSystemBars() {
