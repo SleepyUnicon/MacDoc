@@ -3,7 +3,7 @@ import { EventEmitter, once } from "node:events";
 import { PassThrough } from "node:stream";
 import { createChecker } from "./lib/assert.mjs";
 import { validateInput, validateSignature } from "../src/input.js";
-import { createWindowsInput, createMacInput } from "../src/platform/input.js";
+import { createHelperInput, createMacInput } from "../src/platform/input.js";
 import { createMacProvider } from "../src/platform/macos.js";
 import { createApp } from "../server.js";
 import { TouchpadGestures } from "../public/touchpad-gestures.js";
@@ -75,15 +75,25 @@ function spawn(file, args, options) {
   child.message = (value) => child.stdout.write(JSON.stringify(value) + "\n");
   children.push({ child, file, args, options }); return child;
 }
-const native = createWindowsInput({ helperPath: "C:\\Win & Dock\\helper.exe", spawn, startupMs: 100, stopMs: 30 });
+// The generic JSON-lines bridge every native helper speaks.
+const HELPER = "/Applications/Mac & Dock; rm -rf ~/helper";
+const native = createHelperInput({ helperPath: HELPER, host: "macOS", spawn, startupMs: 100, stopMs: 30 });
 const focusEvents = [];
 const worker = native.open(undefined, event => focusEvents.push(event)); const entry = children.at(-1);
+t.equal(entry.file, HELPER, "helper path is spawned verbatim as the executable");
 t.deepEqual(entry.args, ["touchpad"], "touchpad has fixed argv");
 t.equal(entry.options.shell, false, "no shell interpolation");
-t.equal(entry.options.windowsHide, true, "native helper stays hidden");
+t.deepEqual(entry.options.stdio, ["pipe", "pipe", "pipe"], "helper talks only over pipes");
 entry.child.message({ type: "ready" }); await worker.ready;
 entry.child.message({ type: "focus", target: "12", editable: true, password: false, value: "must not be forwarded" });
 t.deepEqual(focusEvents, [{ type: "focus", target: "12", editable: true, password: false }], "bridge forwards focus metadata only");
+entry.child.message({ type: "focus", target: "../12", editable: true, password: false });
+entry.child.message({ type: "focus", target: "13", editable: "yes", password: false });
+await new Promise((resolve) => setImmediate(resolve));
+t.equal(focusEvents.length, 1, "malformed focus events from the helper are dropped");
+entry.child.message({ type: "input-error", error: "native detail /Users/me/secret" });
+await new Promise((resolve) => setImmediate(resolve));
+t.ok(focusEvents.at(-1).type === "input-error" && !focusEvents.at(-1).error.includes("secret"), "helper input errors reach the phone without native details");
 worker.send({ type: "text", target: "12", text: "Hello 🙂" });
 t.deepEqual(JSON.parse(entry.child.stdin.read().toString()), { type: "text", target: "12", text: "Hello 🙂" }, "emoji text reaches native pipe unchanged");
 worker.send({ type: "move", dx: 15, dy: 7 });
@@ -99,16 +109,20 @@ const save = native.saveSignature(signature); const image = children.at(-1);
 t.deepEqual(image.args, ["signature"], "signature cannot choose a destination or argv");
 t.deepEqual(JSON.parse(image.child.stdin.read().toString()), signature, "only validated stroke data enters helper");
 await t.rejects(() => native.saveSignature(signature), "concurrent save is refused");
-image.child.message({ type: "saved", path: "C:\\Pictures\\MacDoc\\Signatures\\test.png" }); image.child.emit("close", 0);
+image.child.message({ type: "saved", path: "/Users/me/Pictures/MacDoc/Signatures/test.png" }); image.child.emit("close", 0);
 t.ok((await save).path.endsWith("test.png"), "save waits for native success");
 const insert = native.saveSignature(signature, true); const pasted = children.at(-1);
 t.deepEqual(pasted.args, ["signature-insert"], "insertion uses a fixed helper verb");
-pasted.child.message({ type: "saved", path: "C:\\Pictures\\signature.png", clipboard: true, pasteRequested: false }); pasted.child.emit("close", 0);
+pasted.child.message({ type: "saved", path: "/Users/me/Pictures/signature.png", clipboard: true, pasteRequested: false }); pasted.child.emit("close", 0);
 t.equal((await insert).pasteRequested, false, "clipboard fallback does not claim paste succeeded");
 const failedSave = native.saveSignature(signature); children.at(-1).child.emit("close", 2);
 await t.rejects(() => failedSave, "failed native export never claims success");
 const timeoutWorker = native.open(); await t.rejects(() => timeoutWorker.ready, "startup has a deadline"); await timeoutWorker.close();
 t.ok(children.at(-1).child.killed, "unresponsive helper is bounded"); native.dispose();
+const noHelper = createHelperInput({ helperPath: "/nope", host: "macOS", missing: "Build the helper first.", spawn, startupMs: 100, stopMs: 30 });
+const noHelperWorker = noHelper.open(); children.at(-1).child.emit("error", Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" }));
+t.equal(await noHelperWorker.ready.then(() => null, (error) => error.userMessage), "Build the helper first.", "a missing helper reports the configured hint");
+noHelper.dispose();
 
 // macOS helper: same protocol, plus a clear Accessibility message instead of a silent failure.
 const mac = createMacInput({ helperPath: "/Applications/Mac Dock/MacDocInput", spawn, startupMs: 100, stopMs: 30 });
@@ -185,7 +199,7 @@ try {
   first.ws.send(JSON.stringify(unicode)); await wait();
   t.deepEqual(received.at(-1), unicode, "Unicode frames larger than the old mouse-only limit reach the native provider");
   const closed = once(first.ws, "close"); first.ws.send(JSON.stringify({ type: "move", dx: 5000, dy: 0 })); await closed; await wait();
-  t.equal(received.length, 4, "malformed movement never reaches Windows"); t.ok(sessions[0].closed, "malformed input releases mouse session");
+  t.equal(received.length, 4, "malformed movement never reaches the Mac"); t.ok(sessions[0].closed, "malformed input releases mouse session");
   const oversized = await socket(); const oversizedClose = once(oversized.ws, "close"); oversized.ws.send("x".repeat(8193)); await oversizedClose; await wait();
   t.ok(sessions[1].closed, "oversized frame releases session");
   const idle = await socket(); await once(idle.ws, "close"); await wait(); t.ok(sessions[2].closed, "missing phone heartbeat releases ownership");

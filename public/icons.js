@@ -1,4 +1,4 @@
-// Small, consistent UI symbols. Application artwork comes from Windows.
+// Small, consistent UI symbols. Application artwork comes from macOS.
 const paths = {
   touchpad: '<rect x="2" y="4" width="20" height="16" rx="4"/><path d="M2 15h20m-10 0v5m-4-10 4-3 4 3"/>',
   keyboard: '<rect x="2" y="5" width="20" height="14" rx="3"/><path d="M6 9h1m4 0h1m4 0h1M6 12h1m4 0h1m4 0h1M7 15h10"/>',
@@ -40,5 +40,5 @@ export function icon(name, className = "") {
 }
 
 export function controlIcon(verb) {
-  return icon({ "volume-up": "volume", "volume-down": "quieter", "volume-set": "volume", "mute-toggle": "mute", "media-play-pause": "play", "media-next": "next", "media-previous": "previous", "media-stop": "stop", "brightness-set": "sun", lock: "lock", sleep: "moon", shutdown: "power", restart: "refresh" }[verb]);
+  return icon({ "volume-up": "volume", "volume-down": "quieter", "volume-set": "volume", "mute-toggle": "mute", "media-play-pause": "play", "media-next": "next", "media-previous": "previous", "media-stop": "stop", lock: "lock", sleep: "moon", shutdown: "power", restart: "refresh" }[verb]);
 }

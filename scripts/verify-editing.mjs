@@ -19,7 +19,7 @@ import { renderTiles, renderTile, renderControlPicker } from "../public/dock.js"
 import { CONTROL_VERBS, verbTakesValue } from "../src/platform/contract.js";
 import { normalizeTile } from "../src/config.js";
 import { createApp } from "../server.js";
-import { createWindowsProvider } from "../src/platform/windows.js";
+import { createLinuxProvider } from "../src/platform/linux.js";
 import { createConfigStore } from "../src/config.js";
 
 const t = createChecker("editing");
@@ -106,7 +106,8 @@ t.deepEqual(
   "the catalogue offers no verb the host does not implement",
 );
 t.equal(new Set(verbs).size, verbs.length, "no verb appears twice in the catalogue");
-t.ok(CONTROL_CATALOG.length >= 4, "the catalogue is grouped for a phone-sized list");
+t.deepEqual(CONTROL_CATALOG.map((g) => g.group), ["Volume", "Media", "Power"],
+  "the catalogue is grouped for a phone-sized list (no Display group without brightness)");
 
 const groups = availableControls(CONTROL_VERBS, [{ kind: "control", verb: "lock", label: "Lock" }]);
 const flat = groups.flatMap((g) => g.items);
@@ -155,10 +156,11 @@ t.equal(pinnedVolume.find((i) => i.verb === "volume-set" && i.value === 50).pinn
   "an unpinned preset of the same verb is not marked pinned");
 
 // ---- the original defect: a valued verb with no value must be rejected ----
-t.equal(normalizeTile({ kind: "control", verb: "brightness-set", label: "B" }), null,
-  "a valued verb with no value is rejected by the host (regression: it used to be accepted)");
+t.equal(normalizeTile({ kind: "control", verb: "brightness-set", value: 50, label: "B" }), null,
+  "the removed brightness-set verb is rejected even with a valid value");
+t.ok(!verbs.includes("brightness-set"), "the picker no longer offers brightness-set");
 t.equal(normalizeTile({ kind: "control", verb: "volume-set", label: "V" }), null,
-  "volume-set with no value is rejected");
+  "a valued verb with no value is rejected by the host (regression: it used to be accepted)");
 t.equal(normalizeTile({ kind: "control", verb: "volume-set", value: 500 }), null,
   "an out-of-range value is rejected");
 t.equal(normalizeTile({ kind: "control", verb: "volume-set", value: 12.5 }), null,
@@ -199,16 +201,7 @@ const hostile = renderControlPicker([{ group: '<img src=x onerror="a()">', items
 t.ok(!hostile.includes("<img"), "a hostile group name cannot inject an element");
 
 // ---- the host accepts an edited list end to end ----
-const provider = createWindowsProvider({
-  helperPath: "H.exe",
-  exec: async (file, args) => {
-    if (file === "H.exe") return { stdout: "" };
-    const script = args[args.length - 1];
-    if (script.includes("MainWindowHandle")) return { stdout: "[]" };
-    if (script.includes("WScript.Shell")) return { stdout: "[]" };
-    return { stdout: "{}" };
-  },
-});
+const provider = createLinuxProvider({ appDirs: [], exec: async () => ({ stdout: "" }) });
 const dir = await mkdtemp(join(tmpdir(), "macdoc-edit-"));
 const configStore = createConfigStore({ path: join(dir, "config.json") });
 const app = await createApp({ provider, configStore, pin: "1111", trustLoopback: true });

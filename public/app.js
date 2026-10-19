@@ -16,7 +16,6 @@ let editing = false, paired = false, online = false, saving = false;
 let socket = null, reconnectTimer = null, installedApps = [], appsLoaded = false;
 let currentPage = 0, toastTimer, selectedKey = "", suppressClickUntil = 0;
 let pageHintTimer;
-let captureState = { available: false, phase: "idle" }, captureBusy = false, capturePoll = false, captureReceivedAt = Date.now();
 let nowPlayingHtml = "";
 const nowPlaying = createNowPlayingPoller({
   load: async (signal) => (await api("/api/nowplaying", { signal })).nowPlaying,
@@ -51,71 +50,10 @@ function report(error) {
   if (error.message === "unauthorized") return;
   notify(error.message === "Failed to fetch" ? "Connection lost. Check that MacDoc is running on your Mac." : error.message, true);
 }
-function captureActive() { return ["starting", "recording", "stopping"].includes(captureState.phase); }
-function captureTime() {
-  const seconds = Math.floor(((captureState.elapsedMs || 0) + (captureState.phase === "recording" ? Date.now() - captureReceivedAt : 0)) / 1000);
-  return Math.floor(seconds / 60).toString().padStart(2, "0") + ":" + (seconds % 60).toString().padStart(2, "0");
-}
-function paintCapture() {
-  const active = captureActive();
-  const waiting = ["starting", "stopping"].includes(captureState.phase);
-  $("recording-stop").hidden = !paired || !active;
-  $("recording-stop").disabled = !online || captureBusy || waiting;
-  $("recording-time").textContent = !online ? "Reconnecting…" : waiting ? (captureState.phase === "starting" ? "Starting…" : "Saving…") : captureTime();
-  $("capture-screenshot").disabled = !online || !captureState.available || captureBusy || waiting;
-  $("capture-record").disabled = !online || !captureState.available || captureBusy || waiting;
-  $("capture-record").classList.toggle("is-recording", active);
-  $("capture-record-icon").innerHTML = icon(active ? "stop" : "record");
-  $("capture-record-label").textContent = active ? (waiting ? (captureState.phase === "starting" ? "Starting…" : "Saving recording…") : "Stop recording") : "Start recording";
-  $("capture-record-detail").textContent = active ? captureTime() + " · Video only" : "MP4 · Video only";
-  $("capture-status").textContent = !online ? "PC disconnected. Any recording continues on the PC. Reconnect or stop from its tray menu." : captureState.error || (!captureState.available ? "Screen capture is available with the Windows host." : active ? "Recording your main monitor. Stop to save the video." : "Screenshots → Pictures / MacDoc. Recordings → Videos / MacDoc.");
-  const last = captureState.lastCapture;
-  $("capture-file").hidden = !last;
-  $("capture-file").textContent = last ? "Last saved: " + last.path : "";
-}
-async function refreshCapture() {
-  if (captureBusy || capturePoll) return;
-  capturePoll = true;
-  try {
-    const fresh = await api("/api/capture");
-    if (!captureBusy) { captureState = fresh; captureReceivedAt = Date.now(); paintCapture(); }
-  } finally { capturePoll = false; }
-}
-async function captureAction(action) {
-  if (captureBusy || !online) return;
-  captureBusy = true; paintCapture();
-  try {
-    captureState = await api("/api/capture/" + action, { method: "POST", body: "{}" });
-    captureReceivedAt = Date.now();
-    if (action === "start") { $("capture").close(); notify("Recording started · Tap Stop to save"); }
-    else notify(action === "screenshot" ? "Screenshot saved in Pictures / MacDoc" : "Recording saved in Videos / MacDoc");
-  } catch (error) { report(error); }
-  finally { captureBusy = false; paintCapture(); }
-}
-function openCapture() {
-  $("drawer").close(); paintCapture();
-  if (!$("capture").open) $("capture").showModal();
-  refreshCapture().catch(report);
-}
-async function api(path, options = {}) {
-  const res = await fetch(path, {
-    credentials: "same-origin",
-    headers: options.body ? { "content-type": "application/json" } : {},
-    ...options,
-  });
-  if (res.status === 401 && path !== "/api/auth") { showPair("Enter the current PIN to reconnect."); throw new Error("unauthorized"); }
-  if (!res.ok) {
-    const detail = (await res.json().catch(() => ({}))).error;
-    const messages = { "wrong pin": "That PIN doesn’t match. Try the PIN shown on your Mac.", "invalid pin": "Enter all four digits.", locked: "Too many attempts. Wait a moment and try again.", "internal error": "Your Mac couldn’t complete that action. Check the app or device and try again." };
-    throw Object.assign(new Error(messages[detail] || detail || "The request couldn’t be completed."), { status: res.status });
-  }
-  return res.json();
-}
 function showPair(message = "") {
   document.body.classList.remove("is-paired"); panels?.close(true);
   welcome.sync(state, false);
   paired = false;
-  paintCapture();
   syncLayout();
   clearTimeout(reconnectTimer);
   if (socket) { socket.onclose = null; socket.close(); socket = null; }
@@ -124,7 +62,7 @@ function showPair(message = "") {
   $("app").hidden = true;
   $("pair-error").textContent = message;
 }
-function showApp() { paired = true; document.body.classList.add("is-paired"); $("pair").hidden = true; $("app").hidden = false; syncLayout(); paintCapture(); showPairingInfo(); }
+function showApp() { paired = true; document.body.classList.add("is-paired"); $("pair").hidden = true; $("app").hidden = false; syncLayout(); showPairingInfo(); }
 // Only the host's own browser is given the PIN; other devices get 403 and see nothing.
 async function showPairingInfo() {
   try {
@@ -143,7 +81,6 @@ function setConn(on) {
   $("conn").textContent = on ? "Connected" : paired ? "Reconnecting" : "Connecting";
   $("drawer-conn").dataset.state = $("conn").dataset.state;
   $("drawer-conn").textContent = $("conn").textContent;
-  paintCapture();
 }
 function syncLayout() {
   const root = document.documentElement.style;
@@ -271,7 +208,6 @@ async function refresh() {
   state = { ...fresh, tiles: editing || saving || gesture?.dragging ? state.tiles : fresh.tiles };
   if (!gesture?.dragging) paint();
   await nowPlaying.refresh().catch(() => {});
-  await refreshCapture().catch(() => {});
 }
 const powerActions = {
   lock: ["Lock your Mac?", "Your computer will return to its lock screen.", "Lock Mac"],
@@ -540,6 +476,9 @@ document.querySelectorAll("button[data-background]").forEach((button) => button.
 $("immersive").addEventListener("change", () => saveLayout({ immersive: $("immersive").checked }));
 $("show-labels").addEventListener("change", () => saveLayout({ showLabels: $("show-labels").checked }));
 $("glass-theme").addEventListener("change", () => saveLayout({ theme: $("glass-theme").value }));
+// The Android app is already full screen, and its WebView can't go "more"
+// full screen, so the Fullscreen buttons only appear in a browser.
+if (typeof window.MacDocAndroid === "object") document.body.classList.add("in-app");
 async function toggleFullscreen() {
   try {
     if (document.fullscreenElement) { await document.exitFullscreen(); return; }
@@ -557,7 +496,6 @@ $("drawer-close").addEventListener("click", () => $("drawer").close());
 $("drawer-settings").addEventListener("click", openSettings);
 $("drawer-apps").addEventListener("click", () => { $("drawer").close(); openPicker(); });
 $("drawer-controls").addEventListener("click", () => { $("drawer").close(); $("controls-grid").innerHTML = renderControls(state.verbs, state.allowDestructive); $("controls").showModal(); });
-$("drawer-capture").addEventListener("click", openCapture);
 const clipboardSheet = createClipboardSheet({ api, notify, hostName: () => state.hostName || "your computer" });
 const panels = createPanels({ api, notify, report, clipboard: clipboardSheet, isReady: () => paired && !document.body.classList.contains("has-welcome") });
 const homeBar = createHomeBar({ api, notify, report, openDrawer: () => openDrawer(), isOnline: () => online });
@@ -590,11 +528,6 @@ function renderPagesList() {
 $("drawer").addEventListener("close", () => clearInterval(statsTimer));
 const inputPad = createInputPad({ api, notify, WebSocketClass: WebSocket, storage: localStorage });
 $("drawer-input").addEventListener("click", () => inputPad.open());
-$("capture-screenshot").addEventListener("click", () => captureAction("screenshot"));
-$("capture-record").addEventListener("click", () => captureAction(captureActive() ? "stop" : "start"));
-$("recording-stop").addEventListener("click", () => captureAction("stop"));
-setInterval(() => { if (paired && !document.hidden) refreshCapture().catch(() => {}); }, 2000);
-setInterval(() => { if (paired && captureActive() && !document.hidden) paintCapture(); }, 500);
 // The invisible lower edge is also a keyboard-accessible button. Track swipes
 // at document level so lifting above the original hit area still opens it.
 let edgeGesture = null;

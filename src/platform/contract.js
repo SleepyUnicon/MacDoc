@@ -21,7 +21,6 @@ export const CONTROL_VERBS = Object.freeze([
   "media-next",
   "media-previous",
   "media-stop",
-  "brightness-set",
   "lock",
   "sleep",
   "shutdown",
@@ -31,7 +30,6 @@ export const CONTROL_VERBS = Object.freeze([
 /** Verbs that carry a numeric argument, with their inclusive accepted range. */
 export const CONTROL_VERB_RANGES = Object.freeze({
   "volume-set": Object.freeze({ min: 0, max: 100 }),
-  "brightness-set": Object.freeze({ min: 0, max: 100 }),
 });
 
 /** Verbs that end the user's session or power state, gated separately in the API. */

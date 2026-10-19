@@ -53,7 +53,7 @@ export function createInputPad({ api, notify, WebSocketClass = WebSocket, storag
     $("mouse-drag").textContent = dragging ? "Release" : "Drag";
     $("mouse-drag").setAttribute("aria-label", dragging ? "Release drag" : "Drag");
     $("signature-save").disabled = !available || !strokes.length || saving || signaturePointer !== null;
-    $("signature-save").textContent = saving ? "Saving…" : "Save to PC";
+    $("signature-save").textContent = saving ? "Saving…" : "Save to Mac";
     $("signature-insert").disabled = !canInsertSignature || $("signature-save").disabled;
     keyboard.paint();
     $("signature-undo").disabled = !strokes.length || saving;
@@ -65,7 +65,7 @@ export function createInputPad({ api, notify, WebSocketClass = WebSocket, storag
     if (!ready || !socket || socket.readyState !== WebSocketClass.OPEN) return false;
     if (socket.bufferedAmount > 8192) { disconnect(); setStatus("Connection is slow. Reopen the touchpad to reconnect."); return false; }
     try { socket.send(JSON.stringify(message)); return true; }
-    catch { disconnect(); setStatus("PC disconnected. Reopen the touchpad to reconnect."); return false; }
+    catch { disconnect(); setStatus("Mac disconnected. Reopen the touchpad to reconnect."); return false; }
   }
   function flush() {
     if (frame !== null) cancelAnimationFrame(frame); frame = null;
@@ -112,7 +112,7 @@ export function createInputPad({ api, notify, WebSocketClass = WebSocket, storag
       if (mode !== "touchpad") return;
       const ws = new WebSocketClass((location.protocol === "https:" ? "wss:" : "ws:") + "//" + location.host + "/input");
       socket = ws;
-      startup = setTimeout(() => { if (socket === ws) { disconnect(); setStatus("PC did not respond. Reopen the touchpad to retry."); } }, 8000);
+      startup = setTimeout(() => { if (socket === ws) { disconnect(); setStatus("Your Mac did not respond. Reopen the touchpad to retry."); } }, 8000);
       ws.onmessage = (event) => {
         if (socket !== ws) return;
         let message; try { message = JSON.parse(event.data); } catch { return; }
@@ -204,7 +204,7 @@ export function createInputPad({ api, notify, WebSocketClass = WebSocket, storag
     try {
       const result = await api(insert ? "/api/signature/insert" : "/api/signature", { method: "POST", body: JSON.stringify({ strokes, color }) });
       setStatus(result.demo ? result.path : "Saved: " + result.path);
-      notify(result.demo ? "Demo only. No image saved or pasted." : insert ? (result.pasteRequested ? "Paste sent to the PC app · Signature also saved" : "Signature copied · Paste into your Mac app") : "Signature saved to your Mac as a transparent PNG.");
+      notify(result.demo ? "Demo only. No image saved or pasted." : insert ? (result.pasteRequested ? "Paste sent to the Mac app · Signature also saved" : "Signature copied · Paste into your Mac app") : "Signature saved to your Mac as a transparent PNG.");
     } catch (error) { setStatus(error.message); }
     finally { saving = false; paint(); }
   }

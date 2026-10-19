@@ -139,7 +139,7 @@ final class Pointer {
     }
 
     func scroll(_ dx: Int, _ dy: Int) throws {
-        // Pixel units; halved so a slide travels about as far as it does on Windows.
+        // Pixel units; halved so a slide travels about as far as on a trackpad.
         func scale(_ value: Int) -> Int32 { value == 0 ? 0 : Int32(value / 2 == 0 ? value.signum() : value / 2) }
         guard let event = CGEvent(scrollWheelEvent2Source: source, units: .pixel, wheelCount: 2, wheel1: scale(dy), wheel2: scale(dx), wheel3: 0) else { throw InputError("scroll") }
         event.post(tap: .cghidEventTap)

@@ -4,7 +4,7 @@
  * A 4-digit PIN is shown on the host; a device posts it once and receives an
  * opaque session token. PIN comparison is constant-time, failures are counted
  * per client, and a client is locked out after a threshold. Loopback is trusted
- * so the tray app on the host itself does not have to pair with the machine the
+ * so a browser on the Mac itself does not have to pair with the machine the
  * user is already sitting at.
  */
 

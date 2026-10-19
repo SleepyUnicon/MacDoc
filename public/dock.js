@@ -27,7 +27,6 @@ const CONTROL_GLYPH = {
   "media-next": "⏭️",
   "media-previous": "⏮️",
   "media-stop": "⏹️",
-  "brightness-set": "☀️",
   lock: "🔒",
   sleep: "🌙",
   shutdown: "⏻",
@@ -154,7 +153,6 @@ export function renderControls(verbs, allowDestructive = true) {
   const groups = [
     { title: "Sound", hint: "A little louder. A little quieter.", symbol: "volume", items: [["volume-down", "Quieter"], ["mute-toggle", "Mute"], ["volume-up", "Louder"]] },
     { title: "Playback", hint: "Keep the good stuff playing.", symbol: "music", items: [["media-previous", "Previous"], ["media-play-pause", "Play / pause"], ["media-next", "Next"]] },
-    { title: "Display", hint: "Set your built-in screen brightness.", symbol: "sun", items: [["brightness-set", "25%", 25], ["brightness-set", "50%", 50], ["brightness-set", "100%", 100]] },
     { title: "Your Mac", hint: "Power actions ask before continuing.", symbol: "monitor", items: [["lock", "Lock"], ["sleep", "Sleep"], ["restart", "Restart"], ["shutdown", "Shut down"]] },
   ];
   return groups.map((group) => {

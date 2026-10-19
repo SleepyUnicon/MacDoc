@@ -5,36 +5,41 @@ import { join } from "node:path";
 import { request, Agent } from "node:http";
 import { createChecker } from "./lib/assert.mjs";
 import { createApp } from "../server.js";
-import { createWindowsProvider } from "../src/platform/windows.js";
+import { createMacProvider, appIdFromBundle } from "../src/platform/macos.js";
 import { createConfigStore } from "../src/config.js";
+import { makeApp } from "./lib/mac-fixtures.mjs";
 
 const t = createChecker("api");
 const PIN = "4321";
+const AUDIO = "/opt/macdoc/MacDocAudio";
+const WINDOWS = "/opt/macdoc/MacDocWindows";
 
-const INSTALLED = JSON.stringify([
-  { name: "Firefox", target: "C:\\Apps\\firefox.exe", args: "", icon: "", source: "startmenu" },
-  { name: "Notepad", target: "C:\\Windows\\notepad.exe", args: "", icon: "", source: "startmenu" },
-]);
-const RUNNING = JSON.stringify([
-  { Id: 4812, ProcessName: "firefox", MainWindowTitle: "FF", Handle: 12, Path: "C:\\Apps\\firefox.exe" },
-]);
+const appsDir = await mkdtemp(join(tmpdir(), "macdoc-api-apps-"));
+const safari = await makeApp(appsDir, "Safari.app");
+const notes = await makeApp(appsDir, "Notes.app");
+const SAFARI_ID = appIdFromBundle(safari);
+const NOTES_ID = appIdFromBundle(notes);
 
-const helperCalls = [];
-const provider = createWindowsProvider({
-  helperPath: "H.exe",
+const execCalls = [];
+const provider = createMacProvider({
+  appDirs: [appsDir],
+  extraApps: [],
+  audioHelperPath: AUDIO,
+  windowsHelperPath: WINDOWS,
+  inputHelperPath: "/opt/macdoc/MacDocInput",
   exec: async (file, args) => {
-    if (file === "H.exe") {
-      helperCalls.push(args);
-      if (args[0] === "control" && args[1] === "brightness-set") throw new Error("unsupported monitor; private native diagnostics");
-      if (args[0] === "nowplaying") return { stdout: '{"title":"Track","artist":"Band","playing":true}' };
-      return { stdout: "" };
+    execCalls.push({ file, args: [...args] });
+    if (file === "ps") return { stdout: `4812 ${safari}/Contents/MacOS/Safari\n` };
+    if (file === "osascript" && args[0] === "-l" && args.at(-1) === "info") {
+      return { stdout: JSON.stringify({ bundleId: "com.spotify.client", appName: "Spotify", title: "Track", artist: "Band", playing: true }) };
     }
-    const script = args[args.length - 1];
-    if (script.includes("MainWindowHandle")) return { stdout: RUNNING };
-    if (script.includes("WScript.Shell")) return { stdout: INSTALLED };
-    return { stdout: '{"cpu":10,"memTotal":100,"memFree":40,"battery":null,"charging":null}' };
+    if (file === "osascript" && args[1]?.includes("get volume settings") && !args[1].includes("argv")) return { stdout: "35,false" };
+    if (file === AUDIO) return { stdout: "[]" };
+    if (file === "pmset") return { stdout: "Now drawing from 'Battery Power'\n -InternalBattery-0\t61%; discharging" };
+    return { stdout: "" };
   },
 });
+const lastExec = () => execCalls.at(-1);
 
 const dir = await mkdtemp(join(tmpdir(), "macdoc-api-"));
 const configStore = createConfigStore({ path: join(dir, "config.json") });
@@ -74,7 +79,7 @@ async function call(path, { method = "GET", body, origin = base, withCookie = tr
 const health = await call("/health");
 t.equal(health.status, 200, "GET /health is public and returns 200");
 t.equal(health.json.ok, true, "health reports ok");
-t.equal(health.json.platform, "windows", "health names the active provider");
+t.equal(health.json.platform, "macos", "health names the active provider");
 
 // ---- static ----
 const index = await call("/");
@@ -102,7 +107,8 @@ t.ok(cookie.startsWith("macdoc_session="), "pairing issues a session cookie");
 // ---- authenticated routes ----
 const state = await call("/api/state");
 t.equal(state.status, 200, "GET /api/state succeeds when paired");
-t.equal(state.json.platform, "windows", "state names the provider");
+t.equal(state.json.platform, "macos", "state names the provider");
+t.ok(!state.json.verbs.includes("brightness-set"), "state no longer advertises brightness-set");
 t.ok(Array.isArray(state.json.tiles), "state carries a tiles array");
 t.ok(Array.isArray(state.json.running), "state carries a running array");
 t.ok(Array.isArray(state.json.verbs), "state advertises the control verbs");
@@ -110,13 +116,14 @@ t.ok(Array.isArray(state.json.verbs), "state advertises the control verbs");
 const installed = await call("/api/apps/installed");
 t.equal(installed.status, 200, "GET /api/apps/installed succeeds");
 t.equal(installed.json.apps.length, 2, "the installed inventory is returned");
+t.deepEqual(installed.json.apps.map((a) => a.name), ["Notes", "Safari"], "the inventory comes from the .app bundles on disk");
 
 // ---- tiles ----
 const put = await call("/api/tiles", {
   method: "PUT",
   body: {
     tiles: [
-      { kind: "app", id: "c:/apps/firefox.exe", target: "C:\\Apps\\firefox.exe", label: "Firefox" },
+      { kind: "app", id: SAFARI_ID, target: safari, label: "Safari" },
       { kind: "control", verb: "mute-toggle", label: "Mute" },
       { kind: "control", verb: "hack; rm -rf /", label: "Bad" },
     ],
@@ -131,15 +138,23 @@ const ffTile = after.json.tiles.find((x) => x.kind === "app");
 t.equal(ffTile.running, true, "a pinned app with a live process is marked running");
 
 // ---- actions ----
-const launch = await call("/api/apps/launch", { method: "POST", body: { id: "c:/windows/notepad.exe" } });
+const launch = await call("/api/apps/launch", { method: "POST", body: { id: NOTES_ID } });
 t.equal(launch.status, 200, "POST /api/apps/launch succeeds for a known app");
-t.deepEqual(helperCalls.at(-1), ["launch", "C:\\Windows\\notepad.exe"], "launch reaches the helper with exact argv");
-t.equal((await call("/api/apps/launch", { method: "POST", body: { id: "c:/nope.exe" } })).status, 404,
+t.deepEqual(lastExec(), { file: "open", args: ["-a", notes] }, "launch reaches open with exact argv");
+const beforeUnknown = execCalls.length;
+t.equal((await call("/api/apps/launch", { method: "POST", body: { id: "/applications/nope.app" } })).status, 404,
   "launching an unknown app returns 404");
+t.equal((await call("/api/apps/launch", { method: "POST", body: { id: "/bin/sh" } })).status, 404,
+  "an arbitrary path cannot be launched");
+t.ok(!execCalls.slice(beforeUnknown).some((c) => c.file === "open"), "unknown apps never reach open");
 
 const focus = await call("/api/apps/focus", { method: "POST", body: { pid: 4812 } });
 t.equal(focus.status, 200, "POST /api/apps/focus succeeds for a live pid");
-t.deepEqual(helperCalls.at(-1), ["focus", "4812"], "focus reaches the helper with exact argv");
+t.deepEqual(lastExec(), { file: "open", args: ["-a", safari] }, "focus reaches open with the running bundle");
+const closeApp = await call("/api/apps/close", { method: "POST", body: { pid: 4812 } });
+t.equal(closeApp.status, 200, "POST /api/apps/close succeeds for a live pid");
+t.equal(lastExec().file, "osascript", "close asks the app to quit through osascript");
+t.equal(lastExec().args.at(-1), safari, "close passes the running bundle as its own argv entry");
 t.equal((await call("/api/apps/focus", { method: "POST", body: { pid: 999999 } })).status, 404,
   "focusing a dead pid returns 404");
 t.equal((await call("/api/apps/focus", { method: "POST", body: { pid: -1 } })).status, 400,
@@ -149,11 +164,12 @@ t.equal((await call("/api/apps/focus", { method: "POST", body: { pid: "4812; id"
 
 const control = await call("/api/control", { method: "POST", body: { verb: "volume-set", value: 30 } });
 t.equal(control.status, 200, "POST /api/control succeeds for a valid verb");
-t.deepEqual(helperCalls.at(-1), ["control", "volume-set", "30"], "control reaches the helper with exact argv");
-const brightnessFailure = await call("/api/control", { method: "POST", body: { verb: "brightness-set", value: 50 } });
-t.equal(brightnessFailure.status, 503, "unsupported brightness reaches the phone as an actionable failure");
-t.ok(brightnessFailure.json.error.includes("DDC/CI"), "brightness API response explains the monitor setting");
-t.ok(!brightnessFailure.json.error.includes("private native"), "brightness API response does not disclose native diagnostics");
+t.equal(lastExec().file, "osascript", "control reaches osascript");
+t.equal(lastExec().args.at(-1), "30", "the volume reaches osascript as its own argv entry");
+const beforeBrightness = execCalls.length;
+const brightness = await call("/api/control", { method: "POST", body: { verb: "brightness-set", value: 50 } });
+t.equal(brightness.status, 400, "the removed brightness-set verb is rejected");
+t.equal(execCalls.length, beforeBrightness, "a rejected brightness request runs nothing");
 t.equal((await call("/api/control", { method: "POST", body: { verb: "nope" } })).status, 400,
   "an unknown verb is rejected");
 t.equal((await call("/api/control", { method: "POST", body: { verb: "volume-set", value: 500 } })).status, 400,
@@ -163,8 +179,15 @@ const np = await call("/api/nowplaying");
 t.equal(np.status, 200, "GET /api/nowplaying succeeds");
 t.equal(np.json.nowPlaying.title, "Track", "now playing reports the current title");
 
-t.equal((await call("/api/stats")).status, 200, "GET /api/stats succeeds");
+const stats = await call("/api/stats");
+t.equal(stats.status, 200, "GET /api/stats succeeds");
+t.equal(stats.json.battery, 61, "stats report the Mac battery");
+t.deepEqual((await call("/api/volume")).json, { volume: 35, muted: false }, "GET /api/volume reports the output volume");
 t.equal((await call("/api/nope")).status, 404, "an unknown API route returns 404");
+for (const removed of ["/api/capture", "/api/capture/screen", "/api/capture/window?id=1"]) {
+  t.equal((await call(removed)).status, 404, `the removed screen-capture route is gone: ${removed}`);
+}
+t.equal((await call("/api/capture", { method: "POST", body: {} })).status, 404, "posting to the removed capture route is a 404");
 
 // ---- CSRF and body limits ----
 t.equal(
@@ -249,5 +272,6 @@ await app.hub.close();
 app.server.closeAllConnections?.();
 await new Promise((r) => app.server.close(r));
 await rm(dir, { recursive: true, force: true });
+await rm(appsDir, { recursive: true, force: true });
 
 t.done("api verification passed");

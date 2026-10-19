@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { WebSocket } from "ws";
 import { createChecker } from "./lib/assert.mjs";
 import { createApp } from "../server.js";
-import { createWindowsProvider } from "../src/platform/windows.js";
+import { createLinuxProvider } from "../src/platform/linux.js";
 import { createConfigStore } from "../src/config.js";
 import { originAllowed, snapshotMessage } from "../src/sync.js";
 
@@ -30,17 +30,11 @@ t.equal(snap.type, "snapshot", "a snapshot message is typed");
 t.ok(Array.isArray(snap.tiles), "a snapshot carries tiles");
 
 // ---- live socket ----
-const RUNNING = JSON.stringify([
-  { Id: 4812, ProcessName: "firefox", MainWindowTitle: "FF", Handle: 12, Path: "C:\\Apps\\firefox.exe" },
-]);
-const provider = createWindowsProvider({
-  helperPath: "H.exe",
-  exec: async (file, args) => {
-    if (file === "H.exe") return { stdout: "" };
-    const script = args[args.length - 1];
-    if (script.includes("MainWindowHandle")) return { stdout: RUNNING };
-    if (script.includes("WScript.Shell")) return { stdout: "[]" };
-    return { stdout: "{}" };
+const provider = createLinuxProvider({
+  appDirs: [],
+  exec: async (file) => {
+    if (file === "ps") return { stdout: "4812 firefox\n" };
+    return { stdout: "" };
   },
 });
 
@@ -91,8 +85,9 @@ const raw = await firstMessage({ cookie, origin: base });
 t.ok(raw !== null, "a paired client receives a snapshot on connect");
 const message = JSON.parse(raw);
 t.equal(message.type, "snapshot", "the first frame is a snapshot");
-t.equal(message.platform, "windows", "the snapshot names the provider");
+t.equal(message.platform, "linux", "the snapshot names the provider");
 t.equal(message.running.length, 1, "the snapshot carries the running app");
+t.equal(message.running[0].pid, 4812, "the snapshot carries the running pid");
 
 // A cross-origin upgrade with a valid cookie must still be refused.
 t.equal(

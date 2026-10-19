@@ -9,7 +9,6 @@
 import { execFile } from "node:child_process";
 import { platform } from "node:os";
 import { contractViolations } from "./contract.js";
-import { createWindowsProvider } from "./windows.js";
 import { createLinuxProvider } from "./linux.js";
 import { createMacProvider } from "./macos.js";
 
@@ -29,7 +28,7 @@ export function createExec({ timeout = EXEC_TIMEOUT_MS, maxBuffer = EXEC_MAX_BUF
       execFile(
         file,
         args,
-        { timeout, maxBuffer, windowsHide: true, shell: false },
+        { timeout, maxBuffer, shell: false },
         (err, stdout, stderr) => {
           if (err) {
             err.stdout = String(stdout ?? "");
@@ -45,7 +44,6 @@ export function createExec({ timeout = EXEC_TIMEOUT_MS, maxBuffer = EXEC_MAX_BUF
 }
 
 export const PROVIDERS = Object.freeze({
-  win32: createWindowsProvider,
   linux: createLinuxProvider,
   darwin: createMacProvider,
 });

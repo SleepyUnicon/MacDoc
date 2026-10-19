@@ -174,7 +174,6 @@
     <button id="drawer-apps" type="button"><span data-icon="plus"></span><span>Apps</span></button>
     <button id="drawer-controls" type="button"><span data-icon="sliders"></span><span>Controls</span></button>
     <button id="drawer-clipboard" type="button"><span data-icon="clipboard"></span><span>Clipboard</span></button>
-    <button id="drawer-capture" type="button"><span data-icon="camera"></span><span>Capture</span></button>
     <button id="drawer-input" type="button"><span data-icon="touchpad"></span><span>Touch & sign</span></button>
     <button id="drawer-settings" type="button"><span data-icon="sun"></span><span>Appearance</span></button>
     <button id="drawer-edit" type="button"><span data-icon="edit"></span><span>Arrange</span></button>
@@ -184,18 +183,6 @@
   <p class="pair-info pair-info--drawer" data-pair-info hidden>Pair another device with PIN <strong data-pair-pin></strong><small data-pair-address></small></p>
 </dialog>
 
-<button id="recording-stop" class="recording-stop" type="button" aria-label="Stop screen recording" hidden><span class="recording-dot"></span><span id="recording-time">00:00</span><strong>Stop</strong></button>
-<dialog id="capture" class="sheet capture-sheet" aria-labelledby="capture-title">
-  <div class="sheet-handle"></div>
-  <div class="sheet__heading"><div><h2 id="capture-title">Capture your screen</h2><p class="capture-subtitle">Main monitor · Saved on your Mac</p></div><button class="icon-button" type="button" data-close="capture" aria-label="Close capture"><span data-icon="close"></span></button></div>
-  <div class="capture-actions">
-    <button id="capture-screenshot" type="button"><span data-icon="camera"></span><strong>Screenshot</strong><small>PNG · Full resolution</small></button>
-    <button id="capture-record" type="button"><span id="capture-record-icon" data-icon="record"></span><strong id="capture-record-label">Start recording</strong><small id="capture-record-detail">MP4 · Video only</small></button>
-  </div>
-  <p id="capture-status" class="capture-status" role="status">Screenshots → Pictures / MacDoc. Recordings → Videos / MacDoc.</p>
-  <p id="capture-file" class="capture-file" hidden></p>
-  <p class="capture-tip">Recordings stop after 60 minutes. You can also stop from the Windows tray.</p>
-</dialog>
 
 
 
@@ -208,7 +195,7 @@
     <button class="icon-button" type="button" data-close="input-pad" aria-label="Close touchpad and signature"><span data-icon="close"></span></button>
   </header>
   <section id="touchpad-pane" class="input-pad__pane" aria-label="Touchpad">
-    <div id="touchpad-surface" class="touchpad-surface" data-ready="false" aria-label="Touch here to move the PC cursor">
+    <div id="touchpad-surface" class="touchpad-surface" data-ready="false" aria-label="Touch here to move the Mac pointer">
       <div id="touchpad-feedback" class="touchpad-feedback" aria-hidden="true"><span></span><span></span><span></span></div>
       <p id="touchpad-hint" class="touchpad-hint" aria-hidden="true">Tap to click <span>·</span> Two fingers to scroll <span>·</span> Pinch to zoom</p>
     </div>
@@ -221,7 +208,7 @@
     </div>
     <div id="remote-keyboard" class="remote-keyboard" aria-label="Type on your Mac" hidden>
       <button id="remote-keyboard-close" type="button" aria-label="Hide keyboard"><span data-icon="close"></span></button>
-      <input id="remote-keyboard-text" type="text" placeholder="Type on PC…" aria-label="Text to type on PC" maxlength="1024" autocomplete="off" enterkeyhint="enter">
+      <input id="remote-keyboard-text" type="text" placeholder="Type on Mac…" aria-label="Text to type on your Mac" maxlength="1024" autocomplete="off" enterkeyhint="enter">
       <button id="remote-keyboard-backspace" type="button" aria-label="Backspace">⌫</button>
       <button id="remote-keyboard-enter" type="button" aria-label="Enter">↵</button>
       <button id="remote-keyboard-signature" type="button" aria-label="Draw and insert signature"><span data-icon="edit"></span></button>
@@ -234,7 +221,7 @@
     </div></div>
     <div class="input-pad__tools">
       <div class="signature-tools"><button id="signature-undo" type="button" disabled>Undo</button><button id="signature-clear" type="button" disabled>Clear</button><label>Ink<select id="signature-color" aria-label="Signature ink"><option value="black">Black</option><option value="blue">Blue</option></select></label></div>
-      <div class="signature-actions"><button id="signature-save" class="button" type="button" disabled>Save to PC</button><button id="signature-insert" class="button button--primary" type="button" disabled>Insert into PC</button></div>
+      <div class="signature-actions"><button id="signature-save" class="button" type="button" disabled>Save to Mac</button><button id="signature-insert" class="button button--primary" type="button" disabled>Insert into Mac</button></div>
     </div>
   </section>
   <div class="input-pad__connection"><p id="input-status" class="input-pad__status" role="status">Connecting to your Mac…</p><button id="input-reconnect" type="button" hidden>Reconnect</button></div>

@@ -1,58 +1,27 @@
-# Version history
+# Changelog
 
-## Unreleased
+## 0.5.0 — 2026-10-19
 
-- Touch & sign and the remote keyboard now work on a Mac host through a small
-  Swift helper (`npm run build:mac`). The touchpad status says which app needs
-  the Accessibility permission when it is missing.
-- Add the first native iPhone companion source: remembered PC address, PIN pairing
-  through the shared landscape dock, and reconnect/change-PC controls.
-- Add a GitHub macOS workflow for simulator tests, screenshots and unsigned iOS
-  archives. This is not an installable iPhone release; signing and physical testing
-  are still pending. This is separate from the Windows maintenance releases below.
+The first MacDoc release: a dock for your Mac on a spare Android tablet or phone.
 
-## [0.2.1-preview.1](https://github.com/SleepyUnicon/MacDoc/releases/tag/v0.2.1-preview.1) — October 17, 2026
+- **Mac host.** Lists every Mac app with its real icon (including apps installed
+  in folders, such as Adobe's), and opens apps or
+  brings them forward.
+- **Home screen.** An intro animation, a welcome screen that explains MacDoc and
+  lists your apps to pin, 4 to 32 icons per page, page reordering, and a frosted
+  control bar with Show Desktop, volume, Lock and power options.
+- **Side pages.** Swipe in from the left for a player that follows any app;
+  from the right for the shared clipboard and per-app volume. Swipe back to close.
+- **Window cards.** Swipe down for every open window with a live preview; tap one
+  to bring it to the front.
+- **Touchpad, keyboard and signatures** for the Mac.
+- **Setup page.** `localhost:8620/setup` arranges tiles, custom icons, the tablet
+  layout, side pages, the PIN and paired devices from the Mac.
+- **Connection.** A fixed PIN of your choice, devices that stay paired across
+  restarts, Wi-Fi discovery that works on more networks, and a screen that stays
+  on while MacDoc is open.
+- **Updates over Wi-Fi.** `npm run android:update` publishes a new Android build;
+  the tablet shows an update pop-up and installs it without a cable.
 
-- Update the playing track, artist and playback state automatically while the dock
-  is connected and visible. No Refresh tap is needed. Thanks to
-  [Peter-KIbe](https://github.com/Peter-KIbe) for [reporting #1](https://github.com/SleepyUnicon/MacDoc/issues/1).
-- Pause media polling in the background, refresh on return, and recover from
-  temporary failures without overlapping requests or replacing unchanged controls.
-- Add **Check for updates** to the Windows tray and a startup notification when
-  a newer published Windows release is available. Notifications and the download
-  menu open the release page; installation remains manual.
-
-Quit MacDoc from the PC tray and run the new Windows installer. Dock settings
-are preserved. Reconnect the phone app to load the updated interface. **No Android
-update is needed for this fix**: the APK is the unchanged 0.2.0-preview.1 build
-(version code 3). Older Windows installations need this one manual update before
-they can notify you about future releases. Windows notification settings may
-hide startup notifications; the tray check remains available.
-
-## [0.2.0-preview.1](https://github.com/SleepyUnicon/MacDoc/releases/tag/v0.2.0-preview.1) — October 11, 2026
-
-- Use the phone as a full-screen touchpad, with a small grid and blue touch glow.
-- Move, click, drag, scroll with two fingers, adjust pointer speed, and pinch to zoom in apps that support Ctrl + mouse wheel.
-- Open the Android keyboard automatically when a supported PC text field receives focus. Type text and emoji, or open the keyboard manually.
-- Draw signatures in black or blue, save transparent PNGs to the PC, and paste into apps that accept images.
-- Recover real app icons after temporary extraction failures instead of keeping generic placeholders cached.
-- Try touchpad, typing, signature and capture modes in the website demo. The demo never controls a PC or saves files.
-- Browse the version history on the website.
-
-Update both the Windows host and Android app. The APK has version code 3.
-The September 18 public APK used a different debug signing key, so it must be
-uninstalled before installing this APK. Recent local test builds can update
-directly. Re-pair after reinstalling; the dock stored on the PC is preserved.
-
-The Windows installer is unsigned and Android remains debug-signed. Automatic
-keyboard opening depends on the PC app exposing text focus; use the keyboard
-button otherwise. A signature is a handwritten PNG image, not a certificate-based
-digital signature. Pasting requires an app that accepts images.
-
-## [0.1.0-preview.1](https://github.com/SleepyUnicon/MacDoc/releases/tag/v0.1.0-preview.1) — September 18, 2026
-
-- First public Windows installer and Android companion.
-- Landscape app dock with real icons, 4/6/8 icons per page, drag rearranging, backgrounds and glass themes.
-- Local PIN pairing, app launch/focus, media and system controls.
-- Main-monitor PNG screenshots and silent MP4 screen recordings saved to the PC.
-- Interactive website demo and direct EXE/APK downloads.
+MacDoc is a fork of [WinDock](https://github.com/aliihsaad/WinDock) by Ali Saad;
+WinDock's own history is in its repository. MacDoc is Mac only.

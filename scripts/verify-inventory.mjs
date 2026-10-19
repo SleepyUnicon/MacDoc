@@ -1,116 +1,79 @@
-/** G2: Windows installed-app inventory parses correctly from fixtures. */
-import { readFileSync } from "node:fs";
+/** G2: macOS installed-app inventory is read correctly from .app bundles on disk. */
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { createChecker } from "./lib/assert.mjs";
-import {
-  parseInstalled,
-  appIdFromTarget,
-  appIdFromLaunch,
-  packagedAppId,
-  createWindowsProvider,
-  INVENTORY_PS,
-  POWERSHELL,
-  PS_FLAGS,
-} from "../src/platform/windows.js";
+import { makeApp, tempRoot, recorder } from "./lib/mac-fixtures.mjs";
+import { createMacProvider, appIdFromBundle } from "../src/platform/macos.js";
 
 const t = createChecker("inventory");
-const fixtures = join(import.meta.dirname, "..", "test", "fixtures");
-const read = (f) => readFileSync(join(fixtures, f), "utf8");
+const root = await tempRoot("macdoc-inventory-");
 
-const apps = parseInstalled(read("installed.json"));
-const names = apps.map((a) => a.name);
+try {
+  const apps = join(root, "Applications");
+  const utilities = join(root, "Utilities");
+  const system = join(root, "System");
 
-// Pin the exact surviving set, not just its size: a count alone would still
-// pass if filtering kept the wrong three records.
-t.deepEqual(names, ["Firefox", "Notepad", "Visual Studio Code"], "exactly the launchable apps survive");
-t.equal(apps.length, 3, "three launchable apps survive filtering");
-t.ok(!names.includes("Broken No Target"), "entry with empty target is dropped");
-t.ok(!names.includes("Readme"), "non-.exe target is dropped");
-t.ok(!names.some((n) => n === ""), "entry with empty name is dropped");
+  const safari = await makeApp(apps, "Safari.app");
+  await makeApp(apps, "Safari.app/Contents/Helpers/Safari Helper.app"); // inside a bundle: never walked
+  const photoshop = await makeApp(apps, "Adobe Photoshop 2026/Adobe Photoshop 2026.app");
+  await makeApp(apps, "Adobe Photoshop 2026/Uninstall Adobe Photoshop 2026.app");
+  await makeApp(apps, "Zoom Remover.app");
+  await makeApp(apps, "Broken.app", { plist: false });
+  await makeApp(apps, ".Hidden.app");
+  const ytChrome = await makeApp(apps, "Chrome Apps.localized/YouTube.app");
+  const ytEdge = await makeApp(apps, "Edge Apps/YouTube.app");
+  await makeApp(apps, "a/b/c/d/TooDeep.app");
+  const terminal = await makeApp(utilities, "Terminal.app");
+  const finder = await makeApp(system, "Finder.app");
 
-// Start Menu must win over the registry duplicate of the same target.
-const firefox = apps.filter((a) => a.target.toLowerCase().includes("firefox.exe"));
-t.equal(firefox.length, 1, "duplicate targets collapse to one app");
-t.equal(firefox[0].name, "Firefox", "Start Menu name wins over registry name");
-t.equal(firefox[0].source, "startmenu", "surviving record keeps the startmenu source");
+  const rec = recorder();
+  const mac = createMacProvider({
+    exec: rec.exec,
+    appDirs: [apps, utilities, apps, join(root, "does-not-exist")],
+    extraApps: [finder, join(root, "Missing.app")],
+  });
+  const list = await mac.listInstalledApps();
+  const names = list.map((a) => a.name);
 
-t.deepEqual(
-  names,
-  [...names].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" })),
-  "apps are sorted by display name",
-);
+  // Pin the exact surviving set, not just its size: a count alone would still
+  // pass if filtering kept the wrong records.
+  t.deepEqual(
+    names,
+    ["Adobe Photoshop 2026", "Finder", "Safari", "Terminal", "YouTube (Chrome Apps)", "YouTube (Edge Apps)"],
+    "exactly the real apps survive, sorted by name",
+  );
+  t.ok(!names.some((n) => /uninstall|remover/i.test(n)), "uninstallers and removers are skipped");
+  t.ok(!names.includes("Broken"), "a bundle without Contents/Info.plist is skipped");
+  t.ok(!names.includes("Hidden") && !names.includes(".Hidden"), "dot-prefixed entries are skipped");
+  t.ok(!names.includes("Safari Helper"), "apps nested inside another bundle are not listed");
+  t.ok(!names.includes("TooDeep"), "the folder walk is depth-limited");
+  t.ok(!names.includes("Missing"), "an extra app that is absent on this Mac is skipped");
+  t.equal(rec.calls.length, 0, "inventory reads the disk and runs no command");
 
-t.equal(
-  appIdFromTarget("C:\\Program Files\\App\\App.exe"),
-  "c:/program files/app/app.exe",
-  "app id normalizes case and separators",
-);
-t.equal(
-  appIdFromTarget("C:\\Program Files\\App\\App.exe"),
-  appIdFromTarget("c:/PROGRAM FILES/app/APP.EXE"),
-  "app id is stable across case and separator style",
-);
+  const byName = Object.fromEntries(list.map((a) => [a.name, a]));
+  t.equal(byName["Adobe Photoshop 2026"].target, photoshop, "an app nested in a vendor folder is found");
+  t.equal(byName["YouTube (Chrome Apps)"].target, ytChrome, "same-named apps get their folder (minus .localized) as a label");
+  t.equal(byName["YouTube (Edge Apps)"].target, ytEdge, "the second same-named app gets its own folder label");
+  t.equal(byName.Terminal.target, terminal, "every configured app folder is searched");
+  t.equal(byName.Safari.source, "applications", "folder apps report the applications source");
+  t.equal(byName.Finder.source, "system", "extra apps report the system source");
+  t.equal(list.filter((a) => a.target === safari).length, 1, "a folder listed twice does not duplicate its apps");
+  t.ok(list.every((a) => a.id === appIdFromBundle(a.target)), "every id is derived from its bundle path");
+  t.ok(list.every((a) => a.args === "" && a.icon === "" && !("folder" in a)), "records carry no launch args and no internal fields");
+  t.equal(new Set(list.map((a) => a.id)).size, list.length, "ids are unique");
 
-// ConvertTo-Json emits a bare object when there is exactly one result.
-const solo = parseInstalled(read("single.json"));
-t.equal(solo.length, 1, "single bare object parses as one app");
-t.equal(solo[0].name, "Solo App", "single object keeps its name");
+  t.equal(appIdFromBundle("/Applications/Safari.app"), "/applications/safari.app", "app id lower-cases the bundle path");
+  t.equal(appIdFromBundle(" /Applications/X.app "), appIdFromBundle("/applications/x.app"), "app id is stable across case and padding");
+  t.equal(appIdFromBundle(null), "", "a missing path has an empty id");
 
-// Malformed input must degrade to empty, never throw.
-for (const bad of ["", "   ", "not json", "null", "undefined", "[", "{}"]) {
-  let threw = false;
-  let out = null;
-  try {
-    out = parseInstalled(bad);
-  } catch {
-    threw = true;
-  }
-  t.ok(!threw, `malformed input does not throw: ${JSON.stringify(bad)}`);
-  t.ok(Array.isArray(out), `malformed input yields an array: ${JSON.stringify(bad)}`);
+  // Negative control: with no folders at all the same code must come back empty,
+  // proving the list above is not a constant.
+  const empty = createMacProvider({ exec: rec.exec, appDirs: [join(root, "nowhere")], extraApps: [] });
+  t.deepEqual(await empty.listInstalledApps(), [], "negative control: no folders yields no apps");
+  empty.dispose();
+  mac.dispose();
+} finally {
+  await rm(root, { recursive: true, force: true });
 }
 
-// Negative control: a fixture that SHOULD produce apps must not come back empty,
-// proving the assertions above are not passing merely because everything is
-// being filtered out.
-t.ok(parseInstalled(read("installed.json")).length > 0, "negative control: valid fixture is not empty");
-
-// The provider must issue the constant, non-interpolated PowerShell command.
-let captured = null;
-const provider = createWindowsProvider({
-  exec: async (file, args) => {
-    captured = { file, args };
-    return { stdout: read("installed.json") };
-  },
-});
-const viaProvider = await provider.listInstalledApps();
-t.equal(viaProvider.length, 3, "provider returns the parsed inventory");
-t.equal(captured.file, POWERSHELL, "provider invokes powershell.exe");
-t.deepEqual(captured.args, [...PS_FLAGS, INVENTORY_PS], "provider passes the constant inventory script");
-t.ok(captured.args.includes("-NoProfile"), "inventory runs with -NoProfile");
-
-const profiles = parseInstalled(JSON.stringify([
-  { name: "Browser", target: "C:\\Apps\\browser.exe", args: "" },
-  { name: "Work", target: "C:\\Apps\\browser.exe", args: '--profile "Work Space"' },
-  { name: "Personal", target: "C:\\Apps\\browser.exe", args: '--profile "Personal"' },
-  { name: "Work copy", target: "C:\\Apps\\browser.exe", args: '--profile "Work Space"' },
-]));
-t.equal(profiles.length, 3, "different shortcut arguments survive; equivalent shortcuts collapse");
-t.equal(new Set(profiles.map(a => a.id)).size, 3, "argument variants have distinct stable IDs");
-t.equal(appIdFromLaunch("C:\\Apps\\browser.exe"), appIdFromTarget("C:\\Apps\\browser.exe"), "argument-free IDs remain compatible");
-t.equal(appIdFromLaunch("C:\\Apps\\browser.exe", " --private "), appIdFromLaunch("c:/apps/browser.exe", "--private"), "shortcut IDs normalize outer whitespace and path case");
-
-const packaged = parseInstalled(read("packaged-installed.json"));
-t.deepEqual(packaged.map(a => a.name), ["ChatGPT", "ChatGPT Classic", "Claude"], "packaged desktop apps survive inventory filtering");
-t.ok(packaged.every(a => a.source === "packaged"), "packaged apps retain their activation type");
-t.equal(packagedAppId(packaged[0].target), "OpenAI.Codex_2p2nqsd0c76g0!App", "activation ID is preserved case-exactly");
-const merged = parseInstalled(JSON.stringify([
-  ...JSON.parse(read("installed.json")), ...JSON.parse(read("packaged-installed.json")),
-  { name: "Claude", target: "SHELL:APPSFOLDER\\Claude_pzs8sxrjxfjjc!Claude", source: "packaged", args: "--ignored" },
-]));
-t.equal(merged.length, 6, "classic and packaged inventory merge without duplicates");
-t.equal(merged.find(a => a.name === "Claude").args, "", "packaged activation cannot acquire shortcut arguments");
-for (const bad of ["shell:AppsFolder\\", "shell:AppsFolder\\App_pub!App & calc", "shell:AppsFolder\\App_pub!App\n", "shell:AppsFolder\\App_pub!../App", "shell:other.exe", "shell:AppsFolder\\" + "x".repeat(129)]) {
-  t.equal(packagedAppId(bad), null, "malformed namespace item is not an app identity");
-}
-t.equal(parseInstalled(JSON.stringify([{ name: "Bad", target: "shell:other.exe" }])).length, 0, "arbitrary Shell commands never enter the inventory");
 t.done("inventory verification passed");

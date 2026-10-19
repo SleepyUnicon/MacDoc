@@ -285,7 +285,7 @@ body.is-immersive .empty .button .icon { width: 36px; height: 36px; }
 .glass-drawer[open] { animation: drawer-in .25s cubic-bezier(.2,.7,.2,1); }
 .drawer-grip { display: block; width: 100%; min-height: 29px; padding: 10px; background: none; border: 0; touch-action: none; }
 .drawer-grip > span { display: block; width: 33px; height: 3px; margin: auto; border-radius: 3px; background: #ebf5f44d; }
-.drawer-actions { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 7px; padding: 6px 0 16px; }
+.drawer-actions { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px; padding: 6px 0 16px; }
 .drawer-actions button { display: flex; flex-direction: column; align-items: center; gap: 12px; border: 0; border-radius: 18px; padding: 15px 6px 13px; min-height: 88px; background: #ffffff06; font-size: 11px; color: #eef6f5; }
 .drawer-actions button > [data-icon] { width: 29px; height: 29px; }
 .drawer-actions .icon { width: 27px; height: 27px; }
@@ -335,25 +335,6 @@ body.is-immersive .empty .button .icon { width: 36px; height: 36px; }
 @media (orientation: portrait) { .drawer-trigger, .edit-done, .glass-drawer[open] { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .glass-drawer[open] { animation: none; } }
 
-/* Capture stays in the drawer; only an active recording adds a stop pill. */
-.capture-sheet { width: min(92vw, 620px); overflow-y: auto; }
-.capture-sheet > * { flex-shrink: 0; }
-.capture-subtitle { color: var(--muted); font-size: 12px; margin: 5px 0 0; }
-.capture-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 24px; }
-.capture-actions button { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; padding: 20px; min-height: 130px; border: 1px solid #ffffff16; border-radius: 20px; background: #ffffff09; text-align: left; }
-.capture-actions button:hover { background: #ffffff12; }
-.capture-actions button > span { color: var(--accent); margin-bottom: 5px; }
-.capture-actions strong { font-size: 15px; font-weight: 600; }
-.capture-actions small { color: var(--muted); font-size: 11px; }
-.capture-actions .is-recording { border-color: #f5a49b66; background: #de72631a; }
-.capture-actions .is-recording > span { color: #ffb0a8; }
-.capture-status, .capture-file { font-size: 12px; color: var(--muted); margin: 17px 24px 0; overflow-wrap: anywhere; }
-.capture-file { color: var(--accent); font-size: 11px; margin-top: 9px; }
-.capture-tip { font-size: 10px; color: var(--muted); margin: 14px 24px 22px; opacity: .8; }
-.recording-stop { position: fixed; top: max(14px, env(safe-area-inset-top)); left: max(18px, env(safe-area-inset-left)); z-index: 60; display: flex; align-items: center; gap: 11px; min-height: 44px; padding: 10px 16px; border: 1px solid #ffb8ad55; border-radius: 30px; background: #301b22d9; color: #ffe9e5; box-shadow: 0 5px 24px #0003; backdrop-filter: blur(18px); font-size: 12px; font-variant-numeric: tabular-nums; }
-.recording-stop strong { padding-left: 10px; border-left: 1px solid #ffb8ad44; font-weight: 600; }
-.recording-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff988b; }
-@media (max-height: 440px) { .capture-actions button { min-height: 100px; padding: 14px 18px; gap: 5px; } .capture-tip { margin-top: 9px; } }
 
 /* The entire display is the touch surface. Only the bottom controls float above it. */
 .input-pad { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 16px max(20px, env(safe-area-inset-right)) 10px max(20px, env(safe-area-inset-left)); border: 0; border-radius: 0; background: #080b10; color: #e1e7f0; box-shadow: none; overflow: hidden; --accent: #a8c7ff; --muted: #8490a2; }
@@ -696,3 +677,6 @@ body.is-immersive.has-home-bar .page-dots { bottom: calc(var(--bar-space) - 6px)
 .power-menu [data-icon], .power-menu svg { width: 19px; height: 19px; }
 .power-menu__danger { color: #ffb4ab !important; }
 @media (max-width: 720px) { .home-bar { grid-template-columns: auto 1fr auto; } .bar-btn--label span:last-child { display: none; } .bar-btn--label { padding: 0; width: 50px; justify-content: center; } }
+
+body.in-app #drawer-fullscreen, body.in-app #fullscreen { display: none; }
+body.in-app .drawer-actions { grid-template-columns: repeat(6, minmax(0, 1fr)); }

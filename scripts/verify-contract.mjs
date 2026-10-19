@@ -7,9 +7,8 @@ const t = createChecker("contract");
 const exec = async () => ({ stdout: "", stderr: "" });
 
 const ids = Object.keys(PROVIDERS);
-t.ok(ids.length >= 2, `expected at least two providers, found ${ids.length}`);
-t.ok(ids.includes("win32"), "win32 provider is registered");
-t.ok(ids.includes("linux"), "linux provider is registered");
+t.deepEqual([...ids].sort(), ["darwin", "linux"], "exactly the macOS and Linux providers are registered");
+t.ok(!ids.includes("win32"), "the removed Windows provider is not registered");
 
 for (const os of ids) {
   const provider = createProvider({ os, exec });
@@ -21,6 +20,9 @@ for (const os of ids) {
   for (const field of PROVIDER_FIELDS) {
     t.ok(typeof provider[field] === "string" && provider[field], `${os}.${field} is a non-empty string`);
   }
+  // The macOS provider owns lazily started native helpers; release them.
+  provider.dispose?.();
+  provider.input?.dispose?.();
 }
 
 // Negative control: the detector must actually reject a non-conformant object,
@@ -36,6 +38,8 @@ t.ok(
 );
 
 t.throws(() => createProvider({ os: "sunos", exec }), "unsupported platform throws");
-t.throws(() => createProvider({ os: "win32", exec: null }), "provider without exec throws");
+t.throws(() => createProvider({ os: "win32", exec }), "win32 is now an unsupported platform");
+t.throws(() => createProvider({ os: "darwin", exec: null }), "macOS provider without exec throws");
+t.throws(() => createProvider({ os: "linux", exec: null }), "linux provider without exec throws");
 
 t.done("contract verification passed");

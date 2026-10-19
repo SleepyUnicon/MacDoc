@@ -1,10 +1,9 @@
 /** G4: launch and focus build exact argv that never reaches a shell. */
 import { createChecker } from "./lib/assert.mjs";
-import { createWindowsProvider } from "../src/platform/windows.js";
+import { createMacProvider } from "../src/platform/macos.js";
 import { createLinuxProvider, splitExec, parseDesktop } from "../src/platform/linux.js";
 
 const t = createChecker("launch");
-const HELPER = "C:\\Tools\\MacDocHelper.exe";
 
 function recorder(stdout = "") {
   const calls = [];
@@ -16,75 +15,68 @@ function recorder(stdout = "") {
     },
   };
 }
+const macWith = (rec) => createMacProvider({ exec: rec.exec, appDirs: [], extraApps: [] });
 
-// ---- Windows launch / focus / close ----
+// ---- macOS launch / focus / close ----
 let rec = recorder();
-let win = createWindowsProvider({ exec: rec.exec, helperPath: HELPER });
+let mac = macWith(rec);
 
-await win.launchApp({ target: "C:\\Program Files\\App\\App.exe" });
+await mac.launchApp({ target: "/Applications/Safari.app" });
 t.equal(rec.calls.length, 1, "launch issues exactly one exec");
-t.equal(rec.calls[0].file, HELPER, "launch dispatches to the helper binary");
-t.deepEqual(
-  rec.calls[0].args,
-  ["launch", "C:\\Program Files\\App\\App.exe"],
-  "launch argv is [verb, target] with the path as one argument",
-);
+t.equal(rec.calls[0].file, "open", "launch dispatches to open");
+t.deepEqual(rec.calls[0].args, ["-a", "/Applications/Safari.app"], "launch argv is [-a, bundle] with the path as one argument");
+await mac.launchApp("/Applications/Notes.app");
+t.deepEqual(rec.calls[1].args, ["-a", "/Applications/Notes.app"], "launch also accepts a bare bundle path");
 
-await win.focusApp({ pid: 4812 });
-t.deepEqual(rec.calls[1].args, ["focus", "4812"], "focus argv is [verb, pid]");
-await win.closeApp({ pid: 1200 });
-t.deepEqual(rec.calls[2].args, ["close", "1200"], "close argv is [verb, pid]");
+await mac.focusApp({ pid: 812, path: "/Applications/Safari.app" });
+t.equal(rec.calls[2].file, "open", "focus dispatches to open");
+t.deepEqual(rec.calls[2].args, ["-a", "/Applications/Safari.app"], "focus argv is [-a, bundle] (brings a running app forward)");
+
+await mac.closeApp({ pid: 812, path: "/Applications/Safari.app" });
+t.equal(rec.calls[3].file, "osascript", "close dispatches to osascript");
+t.equal(rec.calls[3].args.length, 3, "close argv is [-e, script, path]");
+t.equal(rec.calls[3].args[0], "-e", "close passes the script with -e");
+t.ok(rec.calls[3].args[1].startsWith("on run argv") && rec.calls[3].args[1].includes("item 1 of argv"), "close reads the bundle from argv");
+t.ok(!rec.calls[3].args[1].includes("Safari"), "the bundle path is never spliced into the AppleScript source");
+t.equal(rec.calls[3].args[2], "/Applications/Safari.app", "the bundle path travels as its own argv entry");
 
 // The decisive property: a hostile path must remain ONE argv entry. If any
 // code path joined argv into a string, this target would become a second
 // command. Assert both the count and the exact element.
-const HOSTILE = 'C:\\tmp\\a b" & shutdown /s /t 0 & echo "pwned.exe';
+const HOSTILE = '/Applications/a b"; rm -rf ~; echo "pwned.app';
 rec = recorder();
-win = createWindowsProvider({ exec: rec.exec, helperPath: HELPER });
-await win.launchApp({ target: HOSTILE });
-t.equal(rec.calls[0].args.length, 2, "hostile path does not expand into extra argv entries");
-t.equal(rec.calls[0].args[1], HOSTILE, "hostile path is passed through verbatim as one argument");
+mac = macWith(rec);
+await mac.launchApp({ target: HOSTILE });
+await mac.focusApp({ pid: 5, path: HOSTILE });
+await mac.closeApp({ pid: 5, path: HOSTILE });
+t.equal(rec.calls[0].args.length, 2, "hostile launch path does not expand into extra argv entries");
+t.equal(rec.calls[0].args[1], HOSTILE, "hostile launch path is passed through verbatim as one argument");
+t.equal(rec.calls[1].args[1], HOSTILE, "hostile focus path is passed through verbatim as one argument");
+t.equal(rec.calls[2].args[2], HOSTILE, "hostile close path is passed through verbatim as one argv entry");
+t.ok(!rec.calls[2].args[1].includes("rm -rf"), "the hostile path never enters the AppleScript source");
 t.ok(
-  !rec.calls[0].args.some((a) => a === "shutdown" || a === "/s"),
+  !rec.calls.some(({ args }) => args.some((a) => a === "rm" || a === "-rf" || a === "~;")),
   "no fragment of the hostile path becomes its own argument",
 );
 
 // Negative control: prove the assertion above can fail. A deliberately unsafe
 // joiner must be caught by the same check, otherwise the check proves nothing.
-const unsafeArgv = ["launch", ...HOSTILE.split(" ")];
+const unsafeArgv = ["-a", ...HOSTILE.split(" ")];
 t.ok(unsafeArgv.length > 2, "negative control: a shell-splitting launcher produces extra argv entries");
 
 // Bad input must reject before any exec happens.
 rec = recorder();
-win = createWindowsProvider({ exec: rec.exec, helperPath: HELPER });
-for (const bad of [{}, { target: "" }, { target: "   " }, { target: null }, null]) {
-  await t.rejects(() => win.launchApp(bad), `launch rejects invalid target ${JSON.stringify(bad)}`);
+mac = macWith(rec);
+for (const bad of [{}, { target: "" }, { target: "   " }, { target: null }, null, { target: "/usr/bin/true" }, { target: "/Applications/Safari.app/../../bin/sh" }]) {
+  await t.rejects(() => mac.launchApp(bad), `launch rejects invalid target ${JSON.stringify(bad)}`);
 }
-for (const bad of [{ pid: 0 }, { pid: -1 }, { pid: 1.5 }, { pid: "4812; rm -rf /" }, {}]) {
-  await t.rejects(() => win.focusApp(bad), `focus rejects invalid pid ${JSON.stringify(bad)}`);
-  await t.rejects(() => win.closeApp(bad), `close rejects invalid pid ${JSON.stringify(bad)}`);
+for (const bad of [{ pid: 4812 }, { path: "" }, { path: "/bin/sh" }, { path: 42 }, {}, null]) {
+  await t.rejects(() => mac.focusApp(bad), `focus rejects a non-bundle ${JSON.stringify(bad)}`);
+  await t.rejects(() => mac.closeApp(bad), `close rejects a non-bundle ${JSON.stringify(bad)}`);
 }
 t.equal(rec.calls.length, 0, "no exec is issued for any rejected input");
 
 // ---- Linux provider argv ----
-const packagedTarget = "shell:AppsFolder\\OpenAI.Codex_2p2nqsd0c76g0!App";
-const packagedCalls = recorder();
-const packagedProvider = createWindowsProvider({ exec: packagedCalls.exec, helperPath: HELPER });
-await packagedProvider.launchApp({ target: packagedTarget, args: "ignored" });
-t.deepEqual(packagedCalls.calls[0].args, ["launch-packaged", "OpenAI.Codex_2p2nqsd0c76g0!App"], "packaged launch uses one validated activation ID without shortcut arguments");
-await packagedProvider.appIcon({ target: packagedTarget });
-t.deepEqual(packagedCalls.calls[1].args, ["icon-packaged", "OpenAI.Codex_2p2nqsd0c76g0!App"], "packaged icon extraction uses the Shell app identity");
-await packagedProvider.focusApp({ pid: 12, activationId: "OpenAI.Codex_2p2nqsd0c76g0!App" });
-t.deepEqual(packagedCalls.calls[2].args, ["launch-packaged", "OpenAI.Codex_2p2nqsd0c76g0!App"], "running packaged apps are reactivated by Windows");
-for (const bad of ["shell:AppsFolder\\Bad_id!App & calc", "shell:AppsFolder\\Bad_id!App\n", "shell:other.exe"]) {
-  await t.rejects(() => packagedProvider.launchApp({ target: bad }), "invalid Shell targets cannot reach native activation");
-}
-t.equal(packagedCalls.calls.length, 3, "invalid packaged launches execute nothing");
-
-const shortcutArgs = '--profile "Work Space" --url "https://example.test/?a=1&b=2"';
-await win.launchApp({ target: "C:\\Apps\\browser.exe", args: shortcutArgs });
-t.deepEqual(rec.calls[0].args, ["launch", "C:\\Apps\\browser.exe", shortcutArgs], "shortcut quoting and ampersands reach the helper as one opaque argument string");
-
 const lrec = recorder();
 const lin = createLinuxProvider({ exec: lrec.exec });
 await lin.launchApp({ target: "/usr/bin/firefox", argv: ["/usr/bin/firefox", "--new-window"] });

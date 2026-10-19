@@ -1,4 +1,4 @@
-import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createChecker } from "./lib/assert.mjs";
@@ -7,7 +7,8 @@ import { tileKey } from "../public/tiles.js";
 import { createIconCache } from "../src/icons.js";
 import { createApp } from "../server.js";
 import { createConfigStore } from "../src/config.js";
-import { createWindowsProvider } from "../src/platform/windows.js";
+import { createMacProvider, appIdFromBundle } from "../src/platform/macos.js";
+import { makeApp } from "./lib/mac-fixtures.mjs";
 
 const t = createChecker("launcher");
 const layout = normalizeLayout({ perPage: 8 });
@@ -26,7 +27,7 @@ const preference = normalizeLayout({ perPage: 6, immersive: false, showLabels: t
 t.deepEqual(normalizeLayout(JSON.parse(JSON.stringify(preference))), preference, "appearance and mode preferences survive storage round trips");
 t.equal(normalizeLayout().showLabels, false, "immersive mode starts without app names");
 t.equal(normalizeLayout().immersive, true, "immersive mode is enabled by default");
-const tiles = Array.from({ length: 17 }, (_, i) => ({ kind: "app", id: `c:/apps/${i}.exe`, target: `C:\\Apps\\${i}.exe`, label: `App ${i}` }));
+const tiles = Array.from({ length: 17 }, (_, i) => ({ kind: "app", id: `/applications/app ${i}.app`, target: `/Applications/App ${i}.app`, label: `App ${i}` }));
 t.equal(pageCount(tiles, layout), 3, "overflow creates a partially populated third page");
 t.equal(pageCount([], layout), 1, "empty dock keeps one page");
 const markup = renderPages({ tiles }, layout, true);
@@ -35,7 +36,7 @@ t.equal((markup.match(/data-action="options"/g) || []).length, 17, "every editin
 t.ok(!markup.includes('data-action="launch"'), "editing tiles cannot dispatch launch");
 const reordered = moveToTile(tiles, tileKey(tiles[1]), tileKey(tiles[12]));
 t.equal(reordered[12].id, tiles[1].id, "dragging across pages moves to the destination");
-t.equal(tiles[1].id, "c:/apps/1.exe", "a canceled drag can restore the untouched original list");
+t.equal(tiles[1].id, "/applications/app 1.app", "a canceled drag can restore the untouched original list");
 t.equal(new Set(reordered.map(tileKey)).size, 17, "cross-page moves never duplicate or drop an app");
 t.deepEqual(moveToTile(tiles, "missing", tileKey(tiles[0])), tiles, "a stale drag key is ignored");
 
@@ -69,16 +70,26 @@ for (const throws of [false, true]) {
 
 const png = await readFile(new URL("../public/icon-192.png", import.meta.url));
 const nativeCalls = [];
-const provider = createWindowsProvider({ helperPath: "H.exe", exec: async (file, args) => {
-  if (file === "H.exe") { nativeCalls.push(args); return { stdout: JSON.stringify({ png: args[1].includes("missing") ? null : png.toString("base64") }) }; }
-  return { stdout: args.at(-1).includes("WScript.Shell") ? JSON.stringify([{ name: "App", target: "C:\\Apps\\real.exe", icon: "C:\\Icons\\app.dll,-4" }, { name: "Missing icon", target: "C:\\Apps\\missing.exe" }]) : "[]" };
-} });
 const dir = await mkdtemp(join(tmpdir(), "macdoc-icons-"));
+const real = await makeApp(join(dir, "Applications"), "Real.app");
+const missing = await makeApp(join(dir, "Applications"), "Missing icon.app");
+const provider = createMacProvider({
+  appDirs: [join(dir, "Applications")],
+  extraApps: [],
+  exec: async (file, args) => {
+    // NSWorkspace renders the icon into the output path osascript is given.
+    if (file === "osascript" && args[0] === "-l") {
+      nativeCalls.push(args);
+      if (!args[4].includes("Missing")) await writeFile(args[5], png);
+    }
+    return { stdout: "" };
+  },
+});
 const app = await createApp({ provider, configStore: createConfigStore({ path: join(dir, "config.json") }), trustLoopback: false, pin: "6432" });
 await new Promise((r) => app.server.listen(0, "127.0.0.1", r));
 const base = `http://127.0.0.1:${app.server.address().port}`;
 try {
-  const path = "/api/apps/icon?id=" + encodeURIComponent("c:/apps/real.exe");
+  const path = "/api/apps/icon?id=" + encodeURIComponent(appIdFromBundle(real));
   const unauthorized = await fetch(base + path);
   t.equal(unauthorized.status, 401, "icons require pairing"); await unauthorized.text();
   const auth = await fetch(base + "/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pin: "6432" }) });
@@ -88,12 +99,13 @@ try {
   t.equal(response.headers.get("content-type"), "image/png", "native icon has PNG content type");
   t.ok(Buffer.from(await response.arrayBuffer()).equals(png), "binary icon bytes survive the API round trip");
   t.ok(response.headers.get("cache-control").startsWith("private"), "icons are never cached publicly");
-  t.deepEqual(nativeCalls[0], ["icon", "C:\\Apps\\real.exe", "C:\\Icons\\app.dll,-4"], "native arguments come only from installed inventory");
-  const unknown = await fetch(base + "/api/apps/icon?id=" + encodeURIComponent("C:\\secret.txt"), { headers: { cookie } });
+  t.equal(nativeCalls[0][4], real, "native arguments come only from installed inventory");
+  t.ok(!nativeCalls[0][3].includes(real), "the bundle path is not spliced into the icon script");
+  const unknown = await fetch(base + "/api/apps/icon?id=" + encodeURIComponent("/etc/passwd"), { headers: { cookie } });
   t.equal(unknown.status, 404, "arbitrary file paths cannot reach the extractor"); await unknown.text();
   const second = await fetch(base + path, { headers: { cookie } }); await second.arrayBuffer();
   t.equal(nativeCalls.length, 1, "repeat requests use the server icon cache");
-  const fallback = await fetch(base + "/api/apps/icon?id=" + encodeURIComponent("c:/apps/missing.exe"), { headers: { cookie } });
+  const fallback = await fetch(base + "/api/apps/icon?id=" + encodeURIComponent(appIdFromBundle(missing)), { headers: { cookie } });
   t.equal(fallback.headers.get("content-type"), "image/svg+xml", "unavailable icons still have a usable placeholder");
   t.equal(fallback.headers.get("cache-control"), "private, no-store", "phones must never cache a failed icon lookup");
   await fallback.arrayBuffer();

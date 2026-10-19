@@ -32,7 +32,6 @@ const EXPECTED = {
   "verify-offline.mjs": "offline verification passed",
   "verify-android.mjs": "android verification passed",
   "verify-launcher.mjs": "launcher verification passed",
-  "verify-capture.mjs": "capture verification passed",
   "verify-input.mjs": "input verification passed",
   "verify-audio.mjs": "audio verification passed",
 };

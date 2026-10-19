@@ -21,7 +21,6 @@ config.json
 artifacts/
 website/demo/
 .vercel/
-MacDocHelper.exe
 MacDocInput
 android/.gradle/
 android/local.properties

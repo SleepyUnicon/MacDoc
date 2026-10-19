@@ -1,4 +1,4 @@
-/** Bounded input protocol shared by the HTTP/WS boundaries and Windows bridge. */
+/** Bounded input protocol shared by the HTTP/WS boundaries and the Mac input helper. */
 export function validateInput(message) {
   if (!message || typeof message !== "object" || Array.isArray(message)) return null;
   const exact = (...keys) => Object.keys(message).length === keys.length && keys.every((key) => Object.hasOwn(message, key));

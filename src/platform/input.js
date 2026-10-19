@@ -5,10 +5,6 @@ import { validateInput, validateSignature } from "../input.js";
 const userError = (message, extra = {}) => Object.assign(new Error(message), { userMessage: message, ...extra });
 const APP_NAME = /^[\p{L}\p{N} ._()&+-]{1,64}$/u;
 
-export function createWindowsInput(options = {}) {
-  return createHelperInput({ host: "Windows", ...options });
-}
-
 /**
  * The macOS helper (native/mac/MacDocInput.swift) speaks the same protocol, plus
  * a `denied` event when the Accessibility permission is missing.
@@ -23,14 +19,14 @@ export function createMacInput(options = {}) {
 }
 
 /** Persistent JSON-lines bridge to a native input helper. */
-export function createHelperInput({ helperPath, host = "Windows", missing, denied, spawn = spawnProcess, startupMs = 5000, stopMs = 1800 } = {}) {
+export function createHelperInput({ helperPath, host = "macOS", missing, denied, spawn = spawnProcess, startupMs = 5000, stopMs = 1800 } = {}) {
   const unavailable = () => userError(`${host} could not save the signature. Check the Pictures folder and try again.`, { status: 503 });
   const startFailed = (error) => userError(error?.code === "ENOENT" && missing ? missing : `${host} could not start the touchpad.`);
   const workers = new Set();
   let disposed = false, saving = false;
   function start(verb) {
     if (disposed) throw new Error("Input service closed");
-    const child = spawn(helperPath, [verb], { windowsHide: true, shell: false, stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(helperPath, [verb], { shell: false, stdio: ["pipe", "pipe", "pipe"] });
     workers.add(child);
     child.stderr.resume(); // Native diagnostics never contain signature strokes in responses.
     child.stdin.on("error", () => {});
@@ -70,7 +66,7 @@ export function createHelperInput({ helperPath, host = "Windows", missing, denie
             if (event.type === "ready") { clearTimeout(startup); resolveReady(); }
             else if (event.type === "focus" && /^[1-9][0-9]{0,15}$/.test(event.target) && typeof event.editable === "boolean" && typeof event.password === "boolean") onEvent({ type: "focus", target: event.target, editable: event.editable, password: event.password });
             else if (event.type === "denied" && denied) rejectReady(userError(denied(typeof event.app === "string" && APP_NAME.test(event.app) ? event.app : "the app that runs MacDoc")));
-            else if (event.type === "input-error") onEvent({ type: "input-error", error: `${host === "macOS" ? "Mac" : "PC"} focus changed or input was blocked. Select the field and reopen the keyboard.` });
+            else if (event.type === "input-error") onEvent({ type: "input-error", error: `Mac focus changed or input was blocked. Select the field and reopen the keyboard.` });
           }
           catch { onFailure(); close(); }
         }

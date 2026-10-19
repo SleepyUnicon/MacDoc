@@ -76,7 +76,7 @@ export function addAppTile(tiles, app) {
 
 /**
  * Append a control tile. Adding one that is already pinned is a no-op.
- * `value` is required for verbs that take one (volume-set, brightness-set) and
+ * `value` is required for verbs that take one (volume-set) and
  * is stored on the tile so tapping it sends a complete control request.
  */
 export function addControlTile(tiles, verb, label, value = null) {
@@ -137,14 +137,6 @@ export const CONTROL_CATALOG = Object.freeze([
       { verb: "media-next", label: "Next Track" },
       { verb: "media-previous", label: "Previous" },
       { verb: "media-stop", label: "Stop" },
-    ],
-  },
-  {
-    group: "Display",
-    items: [
-      { verb: "brightness-set", label: "Brightness 25%", value: 25 },
-      { verb: "brightness-set", label: "Brightness 50%", value: 50 },
-      { verb: "brightness-set", label: "Brightness 100%", value: 100 },
     ],
   },
   {

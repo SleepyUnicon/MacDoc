@@ -317,17 +317,6 @@ export async function createApp({
         return sendJson(res, 200, { nowPlaying: await provider.nowPlaying().catch(() => null) });
       }
 
-      if (path === "/api/capture" && req.method === "GET") {
-        return sendJson(res, 200, provider.capture?.status() || { available: false, phase: "idle" });
-      }
-      const captureActions = { "/api/capture/screenshot": "screenshot", "/api/capture/start": "start", "/api/capture/stop": "stop" };
-      if (Object.hasOwn(captureActions, path) && req.method === "POST") {
-        const body = await readJsonBody(req);
-        if (Object.keys(body).length) return sendJson(res, 400, { error: "capture actions take no options" });
-        if (!provider.capture) return sendJson(res, 501, { error: "Screen capture is available on Windows." });
-        return sendJson(res, 200, await provider.capture[captureActions[path]]());
-      }
-
       // ---- Tablet app updates (paired devices only) ----
       if (path === "/api/app/latest" && req.method === "GET") {
         return sendJson(res, 200, (await appUpdates.latest()) || { available: false });
@@ -453,7 +442,7 @@ export async function createApp({
       }
       if (["/api/signature", "/api/signature/insert"].includes(path) && req.method === "POST") {
         const signature = validateSignature(await readJsonBody(req));
-        if (!provider.input) return sendJson(res, 501, { error: "Saving signatures needs the updated Windows host." });
+        if (!provider.input) return sendJson(res, 501, { error: "Saving signatures needs the Mac input helper. Run npm run build:mac on the Mac." });
         return sendJson(res, 200, await provider.input.saveSignature(signature, path.endsWith("/insert")));
       }
 
@@ -480,7 +469,7 @@ export async function createApp({
   const inputHub = createInputHub({ server, input: provider.input, isAuthorized: (req) =>
     authorize({ req, sessions, lockout, remote: req.socket.remoteAddress || "", trustLoopback }).ok,
   });
-  server.on("close", () => { provider.capture?.dispose().catch(() => {}); provider.input?.dispose(); provider.dispose?.(); });
+  server.on("close", () => { provider.input?.dispose(); provider.dispose?.(); });
   clipboard.start();
   server.on("close", () => clipboard.stop());
   return { server, hub, inputHub, clipboard, provider, configStore, dockState, state, sessions, lockout };

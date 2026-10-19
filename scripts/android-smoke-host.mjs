@@ -1,4 +1,4 @@
-// Isolated emulator fixture. No Windows provider and no user configuration.
+// Isolated emulator fixture. No Mac provider and no user configuration.
 import { createApp } from '../server.js';
 import { createConfigStore } from '../src/config.js';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 const dir = resolve(import.meta.dirname, '../artifacts/android-smoke');
 await mkdir(dir, { recursive: true });
 const apps = ['Browser', 'Editor', 'Music', 'Terminal', 'Notes'].map((name, i) => ({
-  id: `smoke-${i + 1}`, name, target: `C:\\Smoke\\app${i + 1}.exe`, args: '', icon: '',
+  id: `smoke-${i + 1}`, name, target: `/Applications/Smoke ${i + 1}.app`, args: '', icon: '',
 }));
 const events = [];
 let running = [];

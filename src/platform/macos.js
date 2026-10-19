@@ -1,6 +1,6 @@
 /**
- * macOS provider — lets the host run on a Mac with the same contract as the
- * Windows and Linux providers.
+ * macOS provider — the host MacDoc runs on, implementing the platform contract
+ * (the Linux provider implements it too, for development and tests).
  *
  * Inventory reads .app bundles from the standard Applications folders, so no
  * permission prompt is needed to list apps. Running apps come from `ps`, mapped
@@ -366,7 +366,7 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
     },
 
     async closeApp(app) {
-      // A polite quit lets the app offer to save, like WM_CLOSE on Windows.
+      // A polite quit lets the app offer to save, rather than force-quitting it.
       if (typeof app?.path !== "string" || !app.path.endsWith(".app")) {
         throw new Error("closeApp requires a running app bundle");
       }
@@ -376,9 +376,6 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
     async control(verb, value) {
       const checked = validateControl(verb, value);
       if (!checked.ok) throw new Error(checked.error);
-      if (checked.verb === "brightness-set") {
-        throw Object.assign(new Error("Brightness isn't supported on macOS yet."), { status: 409 });
-      }
       const build = MAC_CONTROL[checked.verb];
       if (!build) throw new Error(`unmapped control verb: ${checked.verb}`);
       if (MEDIA_ACTIONS[checked.verb]) {

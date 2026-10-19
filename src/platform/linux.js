@@ -1,10 +1,10 @@
 /**
  * Linux provider — a real, working provider used for development on this
- * machine, not a stub. It implements the same contract as the Windows provider
+ * machine, not a stub. It implements the same contract as the macOS provider
  * so the server, PWA, sync and auth layers can be exercised end to end here.
  *
  * Inventory reads freedesktop .desktop entries. Actions shell out through argv
- * arrays exactly like the Windows provider, so the no-shell guarantee is
+ * arrays exactly like the macOS provider, so the no-shell guarantee is
  * identical on both platforms.
  */
 
@@ -123,7 +123,6 @@ export const LINUX_CONTROL = Object.freeze({
   "media-next": () => ["playerctl", ["next"]],
   "media-previous": () => ["playerctl", ["previous"]],
   "media-stop": () => ["playerctl", ["stop"]],
-  "brightness-set": (v) => ["brightnessctl", ["set", `${v}%`]],
   lock: () => ["loginctl", ["lock-session"]],
   sleep: () => ["systemctl", ["suspend"]],
   shutdown: () => ["systemctl", ["poweroff"]],

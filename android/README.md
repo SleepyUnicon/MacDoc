@@ -1,50 +1,59 @@
-# MacDoc Android test app
+# MacDoc Android app
 
-The Android app displays the PC's existing dock in a fullscreen landscape
-WebView. Keep the Windows tray running; this app needs a connection to the PC.
+The Android app shows your Mac's dock full screen in landscape on a tablet or
+phone. Keep MacDoc running on the Mac (`npm start`); the app
+connects to it over your Wi-Fi.
 
 ## Build and install
 
-On Windows, install Android Studio with SDK Platform 34 and Build Tools 34.0.0,
-then run `npm run build:android` from the repository root. The script discovers
-Android Studio's JDK and the usual SDK directory; `JAVA_HOME` and `ANDROID_HOME`
-override them. Java 21, Gradle 8.9 and the included SDK 34 setup were verified.
-The wrapper can also be run directly with `bash android/gradlew -p android
-assembleDebug` on Linux with those prerequisites.
+You need JDK 17 or 21 and the Android SDK (Platform 34). On a Mac with Homebrew's
+`openjdk@17` and the SDK in `~/Library/Android/sdk`:
 
-Output: `artifacts/MacDoc-android-debug.apk`. It supports Android 7/API 24 and
-newer, targets API 34, and uses a local debug signing key. Updating requires the
-same signing key. Production signing and Play Store preparation are separate.
+```bash
+cd android
+echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties
+JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew assembleDebug testDebugUnitTest
+```
 
-Transfer the APK to the phone, open it and allow installation from the chosen
-browser/file manager if Android asks. Alternatively, enable USB debugging,
-approve the PC on the phone, then use the SDK's `adb install -r` with the APK.
+Output: `app/build/outputs/apk/debug/app-debug.apk`. It supports Android 7 (API 24)
+and newer, targets API 34, and is signed with this Mac's debug key. Updates must
+be signed with the same key.
 
-Open MacDoc, use the same LAN as the PC, and enter the PIN from the PC tray.
-If discovery misses the PC, enter its full tray URL or IPv4 address/port and tap
-Connect. A bare IP defaults to port 8620. Back closes an open sheet; a second
-Back returns to the connection screen. Android's first fullscreen prompt needs
-one tap on Got it. System-edge swipes can temporarily reveal navigation bars.
+**After the first install, update over Wi-Fi.** `npm run android:update` (from the
+repository root) builds the app with the next build number and publishes it to
+`~/.config/macdoc/updates`. The app checks when it opens and every 30 minutes and
+shows an update pop-up that has to be tapped. Android asks once to allow MacDoc
+to install apps.
+
+**First install.** Either pair the tablet's browser at the Mac's address, then open
+`/install` and download the app; or connect a USB cable with USB debugging on and
+run `adb install -r` with the APK. Avoid `adb shell am force-stop` on the tablet:
+on some Android 15 builds it blocks the WebView renderer until the next reboot.
+
+Open MacDoc on the same Wi-Fi as the Mac and enter the PIN. If discovery misses
+the Mac, type the address MacDoc shows and tap Connect; a bare IP uses port 8620.
+MacDoc keeps the middle of each side edge for its own swipes, so Android's Back
+gesture works above and below that band.
 
 ## Verification
 
-`npm run build:android` includes Kotlin unit tests, lint and signature validation.
+`./gradlew testDebugUnitTest` runs the Kotlin unit tests.
 `npm test` includes the cross-language protocol check. The Kotlin tests execute
 the real URL/discovery parser and same-origin request policy.
 
 For the emulator flow, start `node scripts/android-smoke-host.mjs` in another
 terminal. It listens only on loopback port 18622 and provides five fake apps,
 test PIN 8642, and an action log in `artifacts/android-smoke/events.json`.
-It never calls a Windows provider or reads the user's saved dock.
+It never calls the Mac provider or reads the user's saved dock.
 
 With an Android emulator running, use the SDK's adb (specify `-s SERIAL` if
 more than one device is attached):
 
-```powershell
+```bash
 cd android
-.\gradlew.bat assembleDebug assembleDebugAndroidTest
-adb install -r app\build\outputs\apk\debug\app-debug.apk
-adb install -r app\build\outputs\apk\androidTest\debug\app-debug-androidTest.apk
+./gradlew assembleDebug assembleDebugAndroidTest
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w -e class com.macdoc.app.DockSmokeTest com.macdoc.app.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
@@ -56,9 +65,8 @@ launch/focus requests, failed manual address recovery and Activity recreation.
 Screenshots are in the app's external files directory. The first-run Android
 fullscreen explanation is dismissed using UI Automator on the English emulator.
 
-The emulator flow passed on Android 16/API 36.1. It does not establish physical
-LAN broadcast reachability or real Windows app activation. G14 remains pending
-until those actions succeed on the user's phone and PC.
+The emulator flow does not exercise real Wi-Fi discovery or a real Mac; those are
+checked on a physical tablet against the Mac host.
 
 ### Automatic now-playing regression
 
@@ -68,7 +76,7 @@ on 18624. Keep other clients disconnected from this fixture during the Android
 test so its background polling count is isolated. After building/installing the
 debug and instrumentation APKs as above, run:
 
-```powershell
+```bash
 adb shell am instrument -w -e class com.macdoc.app.NowPlayingSmokeTest com.macdoc.app.test/androidx.test.runner.AndroidJUnitRunner
 ```
 

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createChecker } from "./lib/assert.mjs";
 import { createApp } from "../server.js";
-import { createWindowsProvider } from "../src/platform/windows.js";
+import { createLinuxProvider } from "../src/platform/linux.js";
 import { createConfigStore } from "../src/config.js";
 
 const t = createChecker("offline");
@@ -73,15 +73,7 @@ t.ok(
 );
 
 // ---- the host actually serves it ----
-const provider = createWindowsProvider({
-  helperPath: "H.exe",
-  exec: async (file, args) => {
-    if (file === "H.exe") return { stdout: "" };
-    const script = args[args.length - 1];
-    if (script.includes("MainWindowHandle") || script.includes("WScript.Shell")) return { stdout: "[]" };
-    return { stdout: "{}" };
-  },
-});
+const provider = createLinuxProvider({ appDirs: [], exec: async () => ({ stdout: "" }) });
 const dir = await mkdtemp(join(tmpdir(), "macdoc-offline-"));
 const app = await createApp({
   provider,
