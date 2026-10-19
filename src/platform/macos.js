@@ -25,7 +25,7 @@
  * launched the host, and reports when that is missing.
  */
 
-import { readdir, readFile, mkdtemp, rm } from "node:fs/promises";
+import { access, readdir, readFile, mkdtemp, rm } from "node:fs/promises";
 import { cpus, freemem, homedir, tmpdir, totalmem } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,6 +33,9 @@ import { validateControl } from "./contract.js";
 import { createMacInput } from "./input.js";
 import { createBrowserMedia, MEDIA_OWNERS } from "./mac-media.js";
 import { createMacMixer, deniedMessage } from "./mac-mixer.js";
+
+/** Uninstallers and background helpers that ship beside real apps. */
+const HELPER_APP = /uninstall|remover|^remove |diagnostic|^core sync$|^ccxprocess$|^acrobat distiller$/i;
 
 /** Apps that live outside the Applications folders but belong on a dock. */
 const EXTRA_APPS = ["/System/Library/CoreServices/Finder.app"];
@@ -294,35 +297,48 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
     input: createMacInput({ helperPath: inputHelperPath, ...(spawn ? { spawn } : {}) }),
 
     async listInstalledApps() {
+      // Many apps install inside their own folder (Adobe, Autodesk, Blackmagic,
+      // CrossOver, browser web apps), so look a few levels down, but never
+      // inside an app bundle itself.
       const byId = new Map();
-      for (const dir of appDirs) {
+      async function walk(dir, depth) {
         let entries;
         try {
-          entries = await readdir(dir);
+          entries = await readdir(dir, { withFileTypes: true });
         } catch {
-          continue;
+          return;
         }
         for (const entry of entries) {
-          if (!entry.endsWith(".app")) continue;
-          const target = join(dir, entry);
-          const id = appIdFromBundle(target);
-          if (!byId.has(id)) {
-            byId.set(id, { id, name: basename(entry, ".app"), target, args: "", icon: "", source: "applications" });
+          if (entry.name.startsWith(".")) continue;
+          const target = join(dir, entry.name);
+          if (entry.name.endsWith(".app")) {
+            const name = basename(entry.name, ".app");
+            if (HELPER_APP.test(name)) continue;
+            // Skip leftovers: broken links and bundles without an Info.plist.
+            try { await access(join(target, "Contents", "Info.plist")); } catch { continue; }
+            const id = appIdFromBundle(target);
+            if (!byId.has(id)) byId.set(id, { id, name, target, args: "", icon: "", source: "applications", folder: depth ? basename(dir).replace(/\.localized$/, "") : "" });
+          } else if (depth < 3 && (entry.isDirectory() || entry.isSymbolicLink())) {
+            await walk(target, depth + 1);
           }
         }
       }
+      for (const dir of appDirs) await walk(dir, 0);
       for (const target of extraApps) {
         const id = appIdFromBundle(target);
         try {
           await readdir(target);
-          if (!byId.has(id)) byId.set(id, { id, name: basename(target, ".app"), target, args: "", icon: "", source: "system" });
+          if (!byId.has(id)) byId.set(id, { id, name: basename(target, ".app"), target, args: "", icon: "", source: "system", folder: "" });
         } catch {
           /* not present on this Mac */
         }
       }
-      return [...byId.values()].sort((a, b) =>
-        a.name.localeCompare(b.name, "en", { sensitivity: "base" }),
-      );
+      // Two apps with the same name (a YouTube web app from two browsers) get their folder as a hint.
+      const counts = new Map();
+      for (const app of byId.values()) counts.set(app.name.toLowerCase(), (counts.get(app.name.toLowerCase()) || 0) + 1);
+      const apps = [...byId.values()].map(({ folder, ...app }) =>
+        counts.get(app.name.toLowerCase()) > 1 && folder ? { ...app, name: `${app.name} (${folder})` } : app);
+      return apps.sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
     },
 
     listRunningApps() {
