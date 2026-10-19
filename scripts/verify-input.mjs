@@ -3,7 +3,8 @@ import { EventEmitter, once } from "node:events";
 import { PassThrough } from "node:stream";
 import { createChecker } from "./lib/assert.mjs";
 import { validateInput, validateSignature } from "../src/input.js";
-import { createWindowsInput } from "../src/platform/input.js";
+import { createWindowsInput, createMacInput } from "../src/platform/input.js";
+import { createMacProvider } from "../src/platform/macos.js";
 import { createApp } from "../server.js";
 import { TouchpadGestures } from "../public/touchpad-gestures.js";
 
@@ -108,6 +109,35 @@ const failedSave = native.saveSignature(signature); children.at(-1).child.emit("
 await t.rejects(() => failedSave, "failed native export never claims success");
 const timeoutWorker = native.open(); await t.rejects(() => timeoutWorker.ready, "startup has a deadline"); await timeoutWorker.close();
 t.ok(children.at(-1).child.killed, "unresponsive helper is bounded"); native.dispose();
+
+// macOS helper: same protocol, plus a clear Accessibility message instead of a silent failure.
+const mac = createMacInput({ helperPath: "/Applications/Mac Dock/MacDocInput", spawn, startupMs: 100, stopMs: 30 });
+const macWorker = mac.open(); const macEntry = children.at(-1);
+t.deepEqual(macEntry.args, ["touchpad"], "Mac touchpad has fixed argv");
+t.equal(macEntry.options.shell, false, "Mac helper runs without a shell");
+macEntry.child.message({ type: "denied", app: "Terminal" });
+const denied = await macWorker.ready.then(() => null, (error) => error);
+t.ok(denied?.userMessage?.includes("Allow Terminal") && denied.userMessage.includes("Accessibility"), "missing Accessibility names the app to allow");
+macEntry.child.emit("close", 3); await macWorker.close();
+const spoofed = mac.open(); children.at(-1).child.message({ type: "denied", app: "Evil\n<script>" });
+const spoofedError = await spoofed.ready.then(() => null, (error) => error);
+t.ok(spoofedError?.userMessage?.includes("the app that runs MacDoc") && !spoofedError.userMessage.includes("<script>"), "helper-reported app name is allowlisted");
+children.at(-1).child.emit("close", 3); await spoofed.close();
+const missingHelper = mac.open(); children.at(-1).child.emit("error", Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" }));
+const missingError = await missingHelper.ready.then(() => null, (error) => error);
+t.ok(missingError?.userMessage?.includes("npm run build:mac"), "missing helper explains how to build it");
+const macReady = mac.open(); const macReadyEntry = children.at(-1); macReadyEntry.child.message({ type: "ready" }); await macReady.ready;
+macReady.send({ type: "key", target: "3", key: "Enter" });
+t.equal(macReadyEntry.child.stdin.read().toString(), '{"type":"key","target":"3","key":"Enter"}\n', "Mac helper receives validated keyboard events");
+const macClosing = macReady.close(); macReadyEntry.child.emit("close", 0); await macClosing;
+const macSave = mac.saveSignature(signature, true); const macImage = children.at(-1);
+t.deepEqual(macImage.args, ["signature-insert"], "Mac signature insert uses a fixed verb");
+macImage.child.message({ type: "saved", path: "/Users/me/Pictures/MacDoc/Signatures/a.png", clipboard: true, pasteRequested: true }); macImage.child.emit("close", 0);
+t.equal((await macSave).pasteRequested, true, "Mac signature insert reports the Cmd+V paste");
+mac.dispose();
+const macProvider = createMacProvider({ exec: async () => ({ stdout: "" }), inputHelperPath: "/tmp/MacDocInput", spawn });
+t.ok(typeof macProvider.input?.open === "function" && typeof macProvider.input.saveSignature === "function", "macOS provider exposes touchpad, keyboard and signatures");
+macProvider.input.dispose();
 
 const received = [], sessions = [], provider = { id: "test", displayName: "Test", listRunningApps: async () => [], input: {
   open(_fail, emit) { emit({ type: "focus", target: "1", editable: true, password: false }); const session = { closed: false, ready: Promise.resolve(), send: (value) => received.push(value), close() { session.closed = true; } }; sessions.push(session); return session; },

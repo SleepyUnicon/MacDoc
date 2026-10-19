@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Touch & sign and the remote keyboard now work on a Mac host through a small
+  Swift helper (`npm run build:mac`). The touchpad status says which app needs
+  the Accessibility permission when it is missing.
 - Add the first native iPhone companion source: remembered PC address, PIN pairing
   through the shared landscape dock, and reconnect/change-PC controls.
 - Add a GitHub macOS workflow for simulator tests, screenshots and unsigned iOS

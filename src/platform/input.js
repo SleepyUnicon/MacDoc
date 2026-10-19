@@ -1,9 +1,31 @@
 import { spawn as spawnProcess } from "node:child_process";
 import { validateInput, validateSignature } from "../input.js";
 
-const unavailable = () => Object.assign(new Error("Windows could not save the signature. Check the Pictures folder and try again."), { status: 503 });
+/** User-facing failure with a message the touchpad status can show as-is. */
+const userError = (message, extra = {}) => Object.assign(new Error(message), { userMessage: message, ...extra });
+const APP_NAME = /^[\p{L}\p{N} ._()&+-]{1,64}$/u;
 
-export function createWindowsInput({ helperPath, spawn = spawnProcess, startupMs = 5000, stopMs = 1800 } = {}) {
+export function createWindowsInput(options = {}) {
+  return createHelperInput({ host: "Windows", ...options });
+}
+
+/**
+ * The macOS helper (native/mac/MacDocInput.swift) speaks the same protocol, plus
+ * a `denied` event when the Accessibility permission is missing.
+ */
+export function createMacInput(options = {}) {
+  return createHelperInput({
+    host: "macOS",
+    missing: "The Mac input helper isn't built yet. Run npm run build:mac on the Mac, then reopen the touchpad.",
+    denied: (app) => `Allow ${app} in System Settings › Privacy & Security › Accessibility, then reopen the touchpad.`,
+    ...options,
+  });
+}
+
+/** Persistent JSON-lines bridge to a native input helper. */
+export function createHelperInput({ helperPath, host = "Windows", missing, denied, spawn = spawnProcess, startupMs = 5000, stopMs = 1800 } = {}) {
+  const unavailable = () => userError(`${host} could not save the signature. Check the Pictures folder and try again.`, { status: 503 });
+  const startFailed = (error) => userError(error?.code === "ENOENT" && missing ? missing : `${host} could not start the touchpad.`);
   const workers = new Set();
   let disposed = false, saving = false;
   function start(verb) {
@@ -32,7 +54,7 @@ export function createWindowsInput({ helperPath, spawn = spawnProcess, startupMs
         closing = exited.finally(() => clearTimeout(kill));
         return closing;
       }
-      child.on("error", () => { rejectReady(new Error("Input worker unavailable")); if (!closed) onFailure(); close(); });
+      child.on("error", (error) => { rejectReady(startFailed(error)); if (!closed) onFailure(); close(); });
       child.on("close", () => {
         ended = true; clearTimeout(startup); resolveExit(); rejectReady(new Error("Input worker exited"));
         if (!closed) onFailure(); closed = true;
@@ -47,7 +69,8 @@ export function createWindowsInput({ helperPath, spawn = spawnProcess, startupMs
             const event = JSON.parse(line);
             if (event.type === "ready") { clearTimeout(startup); resolveReady(); }
             else if (event.type === "focus" && /^[1-9][0-9]{0,15}$/.test(event.target) && typeof event.editable === "boolean" && typeof event.password === "boolean") onEvent({ type: "focus", target: event.target, editable: event.editable, password: event.password });
-            else if (event.type === "input-error") onEvent({ type: "input-error", error: "PC focus changed or input was blocked. Select the PC field and reopen the keyboard." });
+            else if (event.type === "denied" && denied) rejectReady(userError(denied(typeof event.app === "string" && APP_NAME.test(event.app) ? event.app : "the app that runs MacDoc")));
+            else if (event.type === "input-error") onEvent({ type: "input-error", error: `${host === "macOS" ? "Mac" : "PC"} focus changed or input was blocked. Select the field and reopen the keyboard.` });
           }
           catch { onFailure(); close(); }
         }
@@ -67,7 +90,7 @@ export function createWindowsInput({ helperPath, spawn = spawnProcess, startupMs
           const child = start(insert ? "signature-insert" : "signature");
           let output = "", failed = false;
           const timer = setTimeout(() => { failed = true; child.kill(); reject(unavailable()); }, 10000);
-          child.on("error", () => { clearTimeout(timer); failed = true; reject(unavailable()); });
+          child.on("error", (error) => { clearTimeout(timer); failed = true; reject(error?.code === "ENOENT" && missing ? userError(missing, { status: 503 }) : unavailable()); });
           child.stdout.on("data", (data) => { output += data.toString(); if (output.length > 8192) { failed = true; child.kill(); reject(unavailable()); } });
           child.on("close", (code) => {
             clearTimeout(timer);

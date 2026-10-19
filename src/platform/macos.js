@@ -13,12 +13,19 @@
  * Spotify/Music playback, shutdown/restart), so macOS asks once for Automation
  * permission the first time each is used. Brightness has no built-in CLI on
  * macOS and reports itself unsupported.
+ *
+ * The touchpad, remote keyboard and signature insert run in a small Swift
+ * helper (native/mac/MacDocInput.swift, built with `npm run build:mac`) that
+ * posts CGEvents. It needs the Accessibility permission for whichever app
+ * launched the host, and reports when that is missing.
  */
 
 import { readdir, readFile, mkdtemp, rm } from "node:fs/promises";
 import { cpus, freemem, homedir, tmpdir, totalmem } from "node:os";
 import { basename, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { validateControl } from "./contract.js";
+import { createMacInput } from "./input.js";
 
 /** Apps that live outside the Applications folders but belong on a dock. */
 const EXTRA_APPS = ["/System/Library/CoreServices/Finder.app"];
@@ -132,7 +139,10 @@ function createCpuMeter() {
   };
 }
 
-export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_APPS } = {}) {
+/** Built by `npm run build:mac`; MACDOC_INPUT_HELPER overrides the location. */
+export const MAC_INPUT_HELPER = process.env.MACDOC_INPUT_HELPER || fileURLToPath(new URL("../../MacDocInput", import.meta.url));
+
+export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_APPS, inputHelperPath = MAC_INPUT_HELPER, spawn } = {}) {
   if (typeof exec !== "function") throw new Error("macos provider requires exec");
   // pbpaste falls back to a legacy encoding without a UTF-8 locale.
   if (!/UTF-8/i.test(process.env.LC_ALL || process.env.LANG || "")) process.env.LANG = "en_US.UTF-8";
@@ -151,6 +161,7 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
   return {
     id: "macos",
     displayName: "macOS",
+    input: createMacInput({ helperPath: inputHelperPath, ...(spawn ? { spawn } : {}) }),
 
     async listInstalledApps() {
       const byId = new Map();

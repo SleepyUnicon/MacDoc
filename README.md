@@ -22,6 +22,7 @@ MacDoc's host runs on macOS with Node.js 20+:
 
 ```bash
 npm install
+npm run build:mac   # builds the touchpad/keyboard helper (needs Xcode Command Line Tools)
 npm start
 ```
 
@@ -34,8 +35,23 @@ playback, lock and sleep, CPU/memory/battery stats in the drawer, and **Clipboar
 see what's on the Mac's clipboard, copy it to the tablet, send text back, and
 reuse recent items. The history stays in memory and clears when the host stops.
 macOS asks for Automation permission the first time MacDoc quits an app or
-controls a music player. Brightness, screen capture, the touchpad and the remote
-keyboard currently need the Windows host.
+controls a music player.
+
+**Touch & sign** works on the Mac too: one finger moves the cursor, tap to click,
+two-finger tap to right-click, two-finger slide to scroll, pinch for Ctrl+scroll
+zoom, and **Drag** to hold the button. The keyboard button types into the focused
+Mac text field (Unicode, emoji, Enter, Tab, Backspace and arrows), and signatures
+save as transparent PNGs to `~/Pictures/MacDoc/Signatures`; **Insert** puts the PNG
+on the clipboard and sends Cmd+V to the app you were using. This runs through a
+small Swift helper, `MacDocInput`, built by `npm run build:mac`
+(source: `native/mac/MacDocInput.swift`; set `MACDOC_INPUT_HELPER` to use a copy
+elsewhere). It needs the **Accessibility** permission for the app that starts the
+host — Terminal if you run `npm start` there. The first time you open the
+touchpad macOS offers to open System Settings; the touchpad status names the app
+to allow under Privacy & Security › Accessibility. Turn it on, then reopen the
+touchpad. Ctrl+scroll zooms in browsers, and the whole screen if macOS zoom is on.
+
+Brightness and screen capture still need the Windows host.
 
 Tablets get larger grids: choose 12, 15 or 18 icons per page in **Appearance**.
 
@@ -188,7 +204,8 @@ Windows and Android are the downloadable app platforms.
 
 | Command | Purpose |
 | --- | --- |
-| `npm test` | Run the 16 platform-independent verification scripts |
+| `npm test` | Run the 19 platform-independent verification scripts |
+| `npm run build:mac` | Build the macOS touchpad/keyboard helper (`MacDocInput`) |
 | `npm run build:windows` | Package the Windows helper, tray, Node host, and web UI |
 | `npm run test:windows` | Run native Windows smoke checks |
 | `npm run build:installer` | Create `artifacts/installer/MacDocSetup.exe` |
