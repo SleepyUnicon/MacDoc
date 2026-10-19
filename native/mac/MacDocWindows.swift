@@ -91,10 +91,14 @@ private func jpeg(_ image: CGImage) -> Data? {
 /// Captures previews for the listed windows in one pass; returns the ids that succeeded.
 private func capture(_ windows: [Window], into dir: URL) async -> Set<UInt32> {
     guard CGPreflightScreenCaptureAccess(),
-          let content = try? await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false) else { return [] }
+          let content = try? await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true) else { return [] }
     let wanted = Set(windows.filter { !$0.minimized }.map(\.id))
+    // ScreenCaptureKit asserts on windows that aren't on any display (hidden
+    // apps, off-screen helpers), so only capture visible ones with a real frame.
+    let displays = content.displays.map(\.frame)
     var done = Set<UInt32>()
-    for window in content.windows where wanted.contains(window.windowID) {
+    for window in content.windows where wanted.contains(window.windowID) && window.isOnScreen
+        && window.frame.width >= 40 && window.frame.height >= 40 && displays.contains(where: { $0.intersects(window.frame) }) {
         let config = SCStreamConfiguration()
         let scale = min(1, 480 / max(1, window.frame.width))
         config.width = max(1, Int(window.frame.width * scale * 2))
@@ -166,11 +170,16 @@ switch args.first {
 case "snapshot":
     guard args.count == 2 else { exit(2) }
     let dir = URL(fileURLWithPath: args[1], isDirectory: true)
+    // Connect to the window server on the main thread before ScreenCaptureKit
+    // needs it, and keep the main run loop turning while the capture runs.
+    _ = NSApplication.shared
+    _ = CGMainDisplayID()
     var windows = listWindows()
-    let semaphore = DispatchSemaphore(value: 0)
     var captured = Set<UInt32>()
-    Task { captured = await capture(windows, into: dir); semaphore.signal() }
-    semaphore.wait()
+    var finished = false
+    Task { captured = await capture(windows, into: dir); finished = true }
+    let deadline = Date().addingTimeInterval(8)
+    while !finished && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
     for index in windows.indices { windows[index].preview = captured.contains(windows[index].id) }
     emit(windows)
 case "focus":
