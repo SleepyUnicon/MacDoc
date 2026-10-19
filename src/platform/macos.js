@@ -160,6 +160,9 @@ export const PLAYER_SCRIPTS = Object.freeze({
 });
 const MEDIA_ACTIONS = { "media-play-pause": ["toggle", 16], "media-next": ["next", 17], "media-previous": ["previous", 18], "media-stop": ["stop", 16] };
 
+/** Built by `npm run build:mac`; MACDOC_WINDOWS_HELPER overrides the location. */
+export const MAC_WINDOWS_HELPER = process.env.MACDOC_WINDOWS_HELPER || fileURLToPath(new URL("../../MacDocWindows", import.meta.url));
+
 /** Built by `npm run build:mac`; MACDOC_AUDIO_HELPER overrides the location. */
 export const MAC_AUDIO_HELPER = process.env.MACDOC_AUDIO_HELPER || fileURLToPath(new URL("../../MacDocAudio", import.meta.url));
 
@@ -208,7 +211,7 @@ function createCpuMeter() {
 /** Built by `npm run build:mac`; MACDOC_INPUT_HELPER overrides the location. */
 export const MAC_INPUT_HELPER = process.env.MACDOC_INPUT_HELPER || fileURLToPath(new URL("../../MacDocInput", import.meta.url));
 
-export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_APPS, inputHelperPath = MAC_INPUT_HELPER, audioHelperPath = MAC_AUDIO_HELPER, spawn } = {}) {
+export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_APPS, inputHelperPath = MAC_INPUT_HELPER, audioHelperPath = MAC_AUDIO_HELPER, windowsHelperPath = MAC_WINDOWS_HELPER, spawn } = {}) {
   if (typeof exec !== "function") throw new Error("macos provider requires exec");
   // pbpaste falls back to a legacy encoding without a UTF-8 locale.
   if (!/UTF-8/i.test(process.env.LC_ALL || process.env.LANG || "")) process.env.LANG = "en_US.UTF-8";
@@ -233,6 +236,7 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
   }
 
   const browsers = createBrowserMedia({ exec });
+  const windowCache = { list: null, at: 0, previews: new Map(), pending: null };
   let lastBrowser = null;
 
   async function isRunning(bundleId) {
@@ -388,6 +392,17 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
         else throw Object.assign(new Error(`MacDoc can't control ${target.now?.appName || "that app"} yet. Use its own controls on the Mac.`), { status: 409 });
         return { ok: true, verb: checked.verb };
       }
+      if (checked.verb === "lock") {
+        // A real lock first; sleeping the display is the fallback without Accessibility.
+        const locked = await exec(windowsHelperPath, ["lock"]).then(({ stdout }) => JSON.parse(stdout).ok).catch(() => false);
+        if (!locked) await exec("pmset", ["displaysleepnow"]);
+        return { ok: true, verb: checked.verb };
+      }
+      if (checked.verb === "shutdown" || checked.verb === "restart") {
+        // Don't reopen every window at the next login. Telling System Events
+        // directly also skips the "Are you sure?" dialog the Apple menu shows.
+        await exec("defaults", ["write", "com.apple.loginwindow", "TALLogoutSavesState", "-bool", "false"]).catch(() => {});
+      }
       const [file, args] = build(checked.value, null);
       await exec(file, args);
       return { ok: true, verb: checked.verb };
@@ -503,6 +518,69 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
 
     dispose() {
       mixer.dispose();
+    },
+
+    /**
+     * Open windows for the window cards page, with fresh previews when Screen
+     * Recording is allowed. One snapshot at a time; results are reused for 2s
+     * so several devices polling don't multiply the work.
+     */
+    async windows() {
+      const at = Date.now();
+      if (windowCache.list && at - windowCache.at < 2000) return windowCache.list;
+      windowCache.pending ??= (async () => {
+        const dir = await mkdtemp(join(tmpdir(), "macdoc-windows-"));
+        try {
+          const { stdout } = await exec(windowsHelperPath, ["snapshot", dir]);
+          const list = JSON.parse(stdout);
+          const previews = new Map();
+          for (const window of list) {
+            if (!window.preview) continue;
+            try { previews.set(window.id, await readFile(join(dir, `${window.id}.jpg`))); } catch { window.preview = false; }
+          }
+          const permission = await exec(windowsHelperPath, ["permission"]).then(({ stdout: out }) => JSON.parse(out)).catch(() => ({}));
+          windowCache.previews = previews;
+          windowCache.list = { windows: list.map((window) => ({ ...window, appId: appIdFromBundle(window.app) })), permission, at: Date.now() };
+          windowCache.at = Date.now();
+          return windowCache.list;
+        } catch (error) {
+          if (error.code === "ENOENT") throw Object.assign(new Error("Run npm run build:mac on your Mac to turn on window cards."), { status: 501 });
+          throw error;
+        } finally {
+          windowCache.pending = null;
+          await rm(dir, { recursive: true, force: true }).catch(() => {});
+        }
+      })();
+      return windowCache.pending;
+    },
+
+    windowPreview(id) {
+      return windowCache.previews.get(Number(id)) || null;
+    },
+
+    async focusWindow(pid, id) {
+      if (!Number.isInteger(pid) || pid <= 0 || !Number.isInteger(id) || id <= 0) throw Object.assign(new Error("pid and id are required"), { status: 400 });
+      const { stdout } = await exec(windowsHelperPath, ["focus", String(pid), String(id)]);
+      if (!JSON.parse(stdout).ok) throw Object.assign(new Error("That window has closed."), { status: 404 });
+      windowCache.at = 0; // the front window changed
+    },
+
+    /** Show Desktop: hide every app, or bring back the ones it hid. */
+    async showDesktop() {
+      const { stdout } = await exec(windowsHelperPath, ["desktop", join(tmpdir(), "macdoc-desktop-" + process.getuid() + ".json")]);
+      windowCache.at = 0;
+      return JSON.parse(stdout);
+    },
+
+    async outputVolume() {
+      const { stdout } = await exec("osascript", ["-e", "set s to get volume settings\nreturn (output volume of s as text) & \",\" & (output muted of s as text)"]);
+      const [volume, muted] = String(stdout).trim().split(",");
+      return { volume: Number(volume), muted: muted === "true" };
+    },
+
+    async requestScreenRecording() {
+      const { stdout } = await exec(windowsHelperPath, ["request"]);
+      return JSON.parse(stdout);
     },
 
     async readClipboard() {

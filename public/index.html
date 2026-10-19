@@ -58,6 +58,19 @@
 
 <button id="edge-left" class="edge-handle edge-handle--left" type="button" aria-label="Open the music player"><span></span></button>
 <button id="edge-right" class="edge-handle edge-handle--right" type="button" aria-label="Open clipboard and sound"><span></span></button>
+<button id="edge-top" class="edge-top" type="button" aria-label="Show open windows"><span></span></button>
+<section id="windows-panel" class="cards-page" aria-label="Open windows" hidden>
+  <header class="cards-page__head">
+    <div><h2>Open windows</h2><p id="windows-status" role="status">Tap a window to bring it to the front.</p></div>
+    <button id="windows-close" class="icon-button" type="button" aria-label="Close"><span data-icon="close"></span></button>
+  </header>
+  <div id="windows-permission" class="cards-page__notice" hidden>
+    <span data-icon="monitor"></span><p>Allow <strong>Screen Recording</strong> for MacDoc on your Mac to see a preview of each window.</p>
+    <button id="windows-ask" class="button button--small" type="button">Ask on the Mac</button>
+  </div>
+  <ul id="windows-grid" class="cards-grid" aria-label="Windows open on your Mac"></ul>
+  <div class="cards-page__grip" aria-hidden="true"><span></span></div>
+</section>
 <button id="dock-gear" class="dock-gear" type="button" aria-label="Dock settings" title="Dock settings"><span data-icon="gear"></span></button>
 
 <section id="player-panel" class="panel panel--left" aria-label="Now playing" hidden>
@@ -133,6 +146,25 @@
   </footer>
 </main>
 
+<nav id="home-bar" class="home-bar" aria-label="Mac controls" hidden>
+  <span class="home-bar__grip" aria-hidden="true"></span>
+  <button id="bar-desktop" class="bar-btn bar-btn--label" type="button" aria-label="Show desktop"><span data-icon="monitor"></span><span>Desktop</span></button>
+  <div class="bar-volume">
+    <button id="bar-quieter" class="bar-btn" type="button" aria-label="Quieter"><span data-icon="quieter"></span></button>
+    <input id="bar-slider" type="range" min="0" max="100" step="1" value="50" aria-label="Mac volume">
+    <button id="bar-louder" class="bar-btn" type="button" aria-label="Louder"><span data-icon="volume"></span></button>
+    <span id="bar-volume-value" class="bar-volume__value">–</span>
+  </div>
+  <div class="bar-right">
+    <button id="bar-lock" class="bar-btn" type="button" aria-label="Lock the Mac"><span data-icon="lock"></span></button>
+    <button id="bar-power" class="bar-btn" type="button" aria-label="Power options" aria-haspopup="menu" aria-expanded="false"><span data-icon="power"></span></button>
+  </div>
+  <div id="power-menu" class="power-menu" role="menu" hidden>
+    <button type="button" role="menuitem" data-action="control" data-key="sleep"><span data-icon="moon"></span>Sleep</button>
+    <button type="button" role="menuitem" data-action="control" data-key="restart"><span data-icon="refresh"></span>Restart</button>
+    <button type="button" role="menuitem" data-action="control" data-key="shutdown" class="power-menu__danger"><span data-icon="power"></span>Shut down</button>
+  </div>
+</nav>
 <button id="drawer-open" class="drawer-trigger" type="button" aria-label="Open drawer" hidden><span></span></button>
 <button id="edit-done" class="edit-done icon-button" type="button" aria-label="Done editing" hidden><span data-icon="check"></span></button>
 

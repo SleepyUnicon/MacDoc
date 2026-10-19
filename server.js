@@ -366,6 +366,37 @@ export async function createApp({
         return sendJson(res, 404, { error: "not found" });
       }
 
+      // ---- Window cards ----
+      if (path === "/api/windows" && req.method === "GET") {
+        if (!provider.windows) return sendJson(res, 501, { error: "Window cards are available on macOS." });
+        return sendJson(res, 200, await provider.windows());
+      }
+      const previewMatch = path.match(/^\/api\/windows\/(\d{1,10})\/preview$/);
+      if (previewMatch && req.method === "GET") {
+        const preview = provider.windowPreview?.(previewMatch[1]);
+        if (!preview) return sendJson(res, 404, { error: "no preview" });
+        res.writeHead(200, { "content-type": "image/jpeg", "content-length": preview.length, "cache-control": "private, max-age=60", "x-content-type-options": "nosniff" });
+        return res.end(preview);
+      }
+      if (path === "/api/windows/focus" && req.method === "POST") {
+        const body = await readJsonBody(req);
+        if (!provider.focusWindow) return sendJson(res, 501, { error: "Window cards are available on macOS." });
+        await provider.focusWindow(body.pid, body.id);
+        return sendJson(res, 200, { ok: true });
+      }
+      if (path === "/api/desktop" && req.method === "POST") {
+        if (!provider.showDesktop) return sendJson(res, 501, { error: "Show Desktop is available on macOS." });
+        return sendJson(res, 200, await provider.showDesktop());
+      }
+      if (path === "/api/volume" && req.method === "GET") {
+        if (!provider.outputVolume) return sendJson(res, 501, { error: "Volume is available on macOS." });
+        return sendJson(res, 200, await provider.outputVolume());
+      }
+      if (path === "/api/windows/permission" && req.method === "POST") {
+        if (!provider.requestScreenRecording) return sendJson(res, 501, { error: "Window cards are available on macOS." });
+        return sendJson(res, 200, await provider.requestScreenRecording());
+      }
+
       if (path === "/api/nowplaying/artwork" && req.method === "GET") {
         const art = await provider.nowPlayingArtwork?.().catch(() => null);
         if (!art) return sendJson(res, 404, { error: "no artwork" });

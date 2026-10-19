@@ -7,6 +7,8 @@ import { createNowPlayingPoller } from "./now-playing.js";
 import { createClipboardSheet } from "./clipboard.js";
 import { createWelcome, playIntro } from "./welcome.js";
 import { createPanels } from "./panels.js";
+import { createWindowCards } from "./windows.js";
+import { createHomeBar } from "./home-bar.js";
 
 const $ = (id) => document.getElementById(id);
 let state = { tiles: [], running: [], verbs: [] };
@@ -191,6 +193,7 @@ function applyHostSettings(settings) {
   if (settings.updatedAt <= appliedSettingsAt) return false;
   appliedSettingsAt = settings.updatedAt;
   panels.configure(settings);
+  homeBar.configure(settings);
   const changed = SHARED_LAYOUT_KEYS.some((key) => settings[key] !== layout[key]);
   if (changed) saveLayout(Object.fromEntries(SHARED_LAYOUT_KEYS.map((key) => [key, settings[key]])), { fromHost: true });
   return changed;
@@ -273,8 +276,8 @@ async function refresh() {
 const powerActions = {
   lock: ["Lock your Mac?", "Your computer will return to its lock screen.", "Lock Mac"],
   sleep: ["Put your Mac to sleep?", "MacDoc will disconnect until you wake your computer.", "Sleep"],
-  restart: ["Restart your Mac?", "Save your work first. MacDoc will disconnect while your computer restarts.", "Restart"],
-  shutdown: ["Shut down your Mac?", "Save your work first. You’ll need to turn your computer back on to reconnect.", "Shut down"],
+  restart: ["Restart your Mac?", "Save your work first. Apps won’t reopen when it starts again, and MacDoc reconnects once it’s back.", "Restart"],
+  shutdown: ["Shut down your Mac?", "Save your work first. Apps won’t reopen next time, and you’ll need to turn your Mac back on to reconnect.", "Shut down"],
 };
 function confirmPower(verb) {
   return new Promise((resolve) => {
@@ -557,6 +560,8 @@ $("drawer-controls").addEventListener("click", () => { $("drawer").close(); $("c
 $("drawer-capture").addEventListener("click", openCapture);
 const clipboardSheet = createClipboardSheet({ api, notify, hostName: () => state.hostName || "your computer" });
 const panels = createPanels({ api, notify, report, clipboard: clipboardSheet, isReady: () => paired && !document.body.classList.contains("has-welcome") });
+const homeBar = createHomeBar({ api, notify, report, openDrawer: () => openDrawer(), isOnline: () => online });
+const windowCards = createWindowCards({ api, notify, report, isReady: () => paired && !document.body.classList.contains("has-welcome") && !panels.openName });
 $("drawer-clipboard").addEventListener("click", () => { $("drawer").close(); panels.open("mixer"); });
 $("dock-gear").addEventListener("click", openSettings);
 $("pages-arrange").addEventListener("click", () => { $("settings").close(); if (!editing) toggleEditing(); });

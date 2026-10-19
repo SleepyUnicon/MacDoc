@@ -6,7 +6,7 @@ const $ = (id) => document.getElementById(id);
 const GRID_SIZES = { 4: [2, 2], 6: [3, 2], 8: [4, 2], 12: [4, 3], 15: [5, 3], 18: [6, 3], 21: [7, 3], 24: [6, 4], 28: [7, 4], 32: [8, 4] };
 const BACKGROUNDS = [["aurora", "Aurora"], ["dusk", "Dusk"], ["ember", "Ember"], ["midnight", "Midnight"]];
 const PANELS = [["player", "Music player", "Artwork, progress and playback for whatever is playing."], ["mixer", "Clipboard & sound", "The shared clipboard and each app's volume."], ["none", "Nothing", "Turn this edge off."]];
-const DEFAULTS = { perPage: 4, background: "aurora", theme: "glass", showLabels: false, immersive: true, leftPanel: "player", rightPanel: "mixer", showClipboard: true, showSound: true };
+const DEFAULTS = { perPage: 4, background: "aurora", theme: "glass", showLabels: false, immersive: true, leftPanel: "player", rightPanel: "mixer", showClipboard: true, showSound: true, showBar: true };
 
 let state = { tiles: [], verbs: [], hostName: "" };
 let settings = { ...DEFAULTS };
@@ -183,6 +183,7 @@ function paintSettings() {
   $("theme").value = settings.theme;
   $("show-labels").checked = settings.showLabels;
   $("immersive").checked = settings.immersive;
+  $("show-bar").checked = settings.showBar !== false;
   for (const side of ["left", "right"]) {
     const current = settings[side + "Panel"];
     $(side + "-panel").innerHTML = PANELS.map(([value, name, hint]) => '<button type="button" role="radio" data-panel-side="' + side + '" data-panel="' + value + '" aria-checked="' + (value === current) + '"><strong>' + name + "</strong><span>" + hint + "</span></button>").join("");
@@ -207,6 +208,7 @@ $("backgrounds").addEventListener("click", (event) => { const b = event.target.c
 $("theme").addEventListener("change", () => saveSettings({ theme: $("theme").value }));
 $("show-labels").addEventListener("change", () => saveSettings({ showLabels: $("show-labels").checked }));
 $("immersive").addEventListener("change", () => saveSettings({ immersive: $("immersive").checked }));
+$("show-bar").addEventListener("change", () => saveSettings({ showBar: $("show-bar").checked }));
 for (const side of ["left", "right"]) $(side + "-panel").addEventListener("click", (event) => {
   const b = event.target.closest("[data-panel]");
   if (b) saveSettings({ [side + "Panel"]: b.dataset.panel });

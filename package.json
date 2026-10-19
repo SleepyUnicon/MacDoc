@@ -7,7 +7,7 @@
   "description": "Remote app dock and control surface for a Windows PC, driven from a phone on the same LAN.",
   "scripts": {
     "start": "node server.js",
-    "build:mac": "swiftc -O -swift-version 5 -o MacDocInput native/mac/MacDocInput.swift && swiftc -O -swift-version 5 -o MacDocAudio native/mac/MacDocAudio.swift -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker native/mac/MacDocAudio-Info.plist && codesign -f -s - -i com.sleepyunicon.macdoc.audio MacDocAudio",
+    "build:mac": "swiftc -O -swift-version 5 -o MacDocInput native/mac/MacDocInput.swift && swiftc -O -swift-version 5 -o MacDocAudio native/mac/MacDocAudio.swift -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker native/mac/MacDocAudio-Info.plist && codesign -f -s - -i com.sleepyunicon.macdoc.audio MacDocAudio && swiftc -O -swift-version 5 -o MacDocWindows native/mac/MacDocWindows.swift",
     "website": "node scripts/website-server.mjs",
     "build:website-demo": "node scripts/build-website-demo.mjs",
     "package:downloads": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-downloads.ps1",
