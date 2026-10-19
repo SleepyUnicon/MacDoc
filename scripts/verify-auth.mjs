@@ -139,4 +139,43 @@ const locked = authorize({ req: reqWith(live), sessions: asess, lockout: blocked
 t.ok(!locked.ok, "a locked-out client is refused even with a valid session");
 t.equal(locked.code, 429, "a locked-out client yields 429");
 
+// Persistent sessions: survive a restart, store only hashes, end when the PIN changes.
+{
+  const { mkdtempSync, readFileSync, statSync, rmSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { tmpdir } = await import("node:os");
+  const dir = mkdtempSync(join(tmpdir(), "macdoc-auth-"));
+  const file = join(dir, "sessions.json");
+  const first = createSessionStore({ file, pin: "5521" });
+  const kept = first.issue();
+  t.ok(createSessionStore({ file, pin: "5521" }).verify(kept), "a paired device stays paired after a restart");
+  t.ok(!readFileSync(file, "utf8").includes(kept), "the sessions file never contains a raw token");
+  t.equal(statSync(file).mode & 0o777, 0o600, "the sessions file is private to the user");
+  t.ok(!createSessionStore({ file, pin: "1234" }).verify(kept), "changing the PIN signs every device out");
+  t.ok(!createSessionStore({ file: join(dir, "missing.json"), pin: "5521" }).verify(kept), "a missing sessions file starts empty");
+  rmSync(dir, { recursive: true, force: true });
+}
+{
+  const { mkdtempSync, rmSync, writeFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { tmpdir } = await import("node:os");
+  const { configuredPin, savePin } = await import("../src/host-settings.js");
+  const dir = mkdtempSync(join(tmpdir(), "macdoc-pin-"));
+  const file = join(dir, "host.json");
+  t.equal(configuredPin({ env: {}, file }), null, "no settings file means a new PIN each start");
+  savePin("5521", file);
+  t.equal(configuredPin({ env: {}, file }), "5521", "a saved PIN is used on every start");
+  t.equal(configuredPin({ env: { MACDOC_PIN: "0042" }, file }), "0042", "MACDOC_PIN overrides the settings file");
+  let threw = false;
+  try { configuredPin({ env: { MACDOC_PIN: "12345" }, file }); } catch { threw = true; }
+  t.ok(threw, "a PIN that isn't four digits is refused");
+  writeFileSync(file, JSON.stringify({ pin: "12ab" }));
+  threw = false;
+  try { configuredPin({ env: {}, file }); } catch { threw = true; }
+  t.ok(threw, "a malformed PIN in the settings file is refused");
+  savePin(null, file);
+  t.equal(configuredPin({ env: {}, file }), null, "clearing the PIN returns to a new PIN each start");
+  rmSync(dir, { recursive: true, force: true });
+}
+
 t.done("auth verification passed");

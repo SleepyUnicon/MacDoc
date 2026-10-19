@@ -8,7 +8,9 @@
  * user is already sitting at.
  */
 
-import { randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { readFileSync, writeFileSync, renameSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 
 export const PIN_LENGTH = 4;
 export const MAX_FAILS = 5;
@@ -87,12 +89,49 @@ export function createLockout({ maxFails = MAX_FAILS, lockMs = LOCK_MS, now = Da
   };
 }
 
-/** Opaque session tokens with an expiry. */
-export function createSessionStore({ ttlMs = SESSION_TTL_MS, now = Date.now } = {}) {
+const hashToken = (token) => createHash("sha256").update(token).digest("base64url");
+export const pinFingerprint = (pin) => createHash("sha256").update("macdoc-pin:" + pin).digest("base64url");
+
+/**
+ * Opaque session tokens with an expiry.
+ *
+ * With `file`, paired devices survive a host restart: only a hash of each
+ * token is written (mode 0600), together with a fingerprint of the PIN, so
+ * changing the PIN signs every device out.
+ */
+export function createSessionStore({ ttlMs = SESSION_TTL_MS, now = Date.now, file = null, pin = "" } = {}) {
   const sessions = new Map();
+  const fingerprint = file ? pinFingerprint(pin) : "";
+
+  if (file) {
+    try {
+      const saved = JSON.parse(readFileSync(file, "utf8"));
+      if (saved?.pin === fingerprint && saved.sessions && typeof saved.sessions === "object") {
+        for (const [hash, expiry] of Object.entries(saved.sessions)) {
+          if (typeof hash === "string" && Number.isFinite(expiry) && expiry > now()) sessions.set(hash, expiry);
+        }
+      }
+    } catch {
+      /* No saved sessions yet, or an unreadable file: start fresh. */
+    }
+  }
+
+  function persist() {
+    if (!file) return;
+    try {
+      mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+      const temp = file + ".tmp";
+      writeFileSync(temp, JSON.stringify({ version: 1, pin: fingerprint, sessions: Object.fromEntries(sessions) }), { mode: 0o600 });
+      renameSync(temp, file);
+    } catch {
+      /* Pairing still works for this run; it just won't survive a restart. */
+    }
+  }
 
   function prune(at) {
-    for (const [token, expiry] of sessions) if (expiry <= at) sessions.delete(token);
+    let changed = false;
+    for (const [hash, expiry] of sessions) if (expiry <= at) { sessions.delete(hash); changed = true; }
+    return changed;
   }
 
   return {
@@ -100,24 +139,28 @@ export function createSessionStore({ ttlMs = SESSION_TTL_MS, now = Date.now } = 
       const at = now();
       prune(at);
       const token = randomBytes(32).toString("base64url");
-      sessions.set(token, at + ttlMs);
+      sessions.set(hashToken(token), at + ttlMs);
+      persist();
       return token;
     },
     verify(token) {
       if (typeof token !== "string" || !token) return false;
-      const expiry = sessions.get(token);
+      const hash = hashToken(token);
+      const expiry = sessions.get(hash);
       if (expiry === undefined) return false;
       if (expiry <= now()) {
-        sessions.delete(token);
+        sessions.delete(hash);
+        persist();
         return false;
       }
       return true;
     },
     revokeAll() {
       sessions.clear();
+      persist();
     },
     get size() {
-      prune(now());
+      if (prune(now())) persist();
       return sessions.size;
     },
   };

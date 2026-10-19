@@ -11,6 +11,7 @@ import { hostname } from "node:os";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { createProvider } from "./src/platform/index.js";
+import { configuredPin, hostSettingsPath, sessionsPath } from "./src/host-settings.js";
 import { createClipboardHub, validateClipboardText } from "./src/clipboard.js";
 import { validateControl, isDestructiveVerb, CONTROL_VERBS } from "./src/platform/contract.js";
 import { createConfigStore } from "./src/config.js";
@@ -395,7 +396,10 @@ export async function createApp({
 
 export async function start({ port = Number(process.env.PORT) || DEFAULT_PORT, host = process.env.MACDOC_HOST || "" } = {}) {
   const address = primaryAddress(undefined, host);
-  const app = await createApp();
+  const fixedPin = configuredPin();
+  const pin = fixedPin ?? newPin();
+  const app = await createApp({ pin, sessions: createSessionStore({ file: sessionsPath(), pin }) });
+  app.state.fixedPin = Boolean(fixedPin);
   await new Promise((resolve, reject) => {
     app.server.once("error", reject);
     app.server.listen(port, () => { app.server.off("error", reject); resolve(); });
@@ -413,7 +417,7 @@ if (isMain) {
   start()
     .then(({ endpoint, state, provider }) => {
       process.stdout.write(
-        `MacDoc host ready\n  provider: ${provider.displayName}\n  open:     ${endpoint}\n  PIN:      ${state.pin}\n`,
+        `MacDoc host ready\n  provider: ${provider.displayName}\n  open:     ${endpoint}\n  PIN:      ${state.pin}${state.fixedPin ? `  (fixed, from ${hostSettingsPath()})` : "  (new each start; set one with npm run set-pin -- 1234)"}\n`,
       );
     })
     .catch((err) => {

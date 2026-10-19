@@ -53,6 +53,14 @@ touchpad. Ctrl+scroll zooms in browsers, and the whole screen if macOS zoom is o
 
 Brightness and screen capture still need the Windows host.
 
+**Keep the same PIN.** By default MacDoc makes a new PIN each time it starts.
+To use your own, run `npm run set-pin -- 1234` (any four digits) and restart
+MacDoc. The PIN is saved in `~/.config/macdoc/host.json` on your Mac, never in
+the repository; `MACDOC_PIN=1234 npm start` works too. Paired devices are
+remembered in `~/.config/macdoc/sessions.json` (hashed), so they stay connected
+across restarts until you change the PIN. `npm run set-pin -- --random` goes
+back to a new PIN each start.
+
 Tablets get larger grids: choose 12, 15 or 18 icons per page in **Appearance**.
 
 ## Get started

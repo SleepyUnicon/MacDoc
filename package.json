@@ -17,7 +17,8 @@
     "build:android": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1",
     "test:windows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-windows.ps1",
     "test": "node test/run.mjs",
-    "gates": "node scripts/gates.mjs --status"
+    "gates": "node scripts/gates.mjs --status",
+    "set-pin": "node scripts/set-pin.mjs"
   },
   "engines": {
     "node": ">=20"
