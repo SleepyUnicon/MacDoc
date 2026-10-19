@@ -2,7 +2,7 @@
 using System.Management;
 using System.Runtime.InteropServices;
 
-namespace WinDock;
+namespace MacDoc;
 
 internal static class Brightness
 {

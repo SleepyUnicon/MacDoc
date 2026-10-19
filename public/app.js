@@ -1,9 +1,11 @@
 import { renderNowPlaying, renderControlPicker, renderAppIcon, renderControls, escapeHtml } from "./dock.js";
 import { icon, controlIcon } from "./icons.js";
 import { addAppTile, addControlTile, removeTile, moveTile, toWireTiles, availableControls, tileKey } from "./tiles.js";
-import { normalizeLayout, renderPages, pageCount, moveToTile } from "./launcher.js";
+import { GRIDS, normalizeLayout, renderPages, pageCount, moveToTile } from "./launcher.js";
 import { createInputPad } from "./input-pad.js";
 import { createNowPlayingPoller } from "./now-playing.js";
+import { createClipboardSheet } from "./clipboard.js";
+import { createWelcome, playIntro } from "./welcome.js";
 
 const $ = (id) => document.getElementById(id);
 let state = { tiles: [], running: [], verbs: [] };
@@ -23,7 +25,9 @@ const nowPlaying = createNowPlayingPoller({
   },
 });
 let layout;
-try { layout = normalizeLayout(JSON.parse(localStorage.getItem("windock-layout"))); } catch { layout = normalizeLayout(); }
+try { layout = normalizeLayout(JSON.parse(localStorage.getItem("macdoc-layout"))); } catch { layout = normalizeLayout(); }
+playIntro($("intro"));
+const welcome = createWelcome({ api, commitTiles, notify, report });
 document.querySelectorAll("[data-icon]").forEach((el) => { el.innerHTML = icon(el.dataset.icon); });
 document.addEventListener("error", (event) => {
   if (event.target instanceof HTMLImageElement && event.target.closest(".app-icon")) event.target.parentElement.classList.add("icon-failed");
@@ -41,7 +45,7 @@ function notify(message, error = false) {
 }
 function report(error) {
   if (error.message === "unauthorized") return;
-  notify(error.message === "Failed to fetch" ? "Connection lost. Check that WinDock is running on your PC." : error.message, true);
+  notify(error.message === "Failed to fetch" ? "Connection lost. Check that MacDoc is running on your Mac." : error.message, true);
 }
 function captureActive() { return ["starting", "recording", "stopping"].includes(captureState.phase); }
 function captureTime() {
@@ -60,7 +64,7 @@ function paintCapture() {
   $("capture-record-icon").innerHTML = icon(active ? "stop" : "record");
   $("capture-record-label").textContent = active ? (waiting ? (captureState.phase === "starting" ? "Starting…" : "Saving recording…") : "Stop recording") : "Start recording";
   $("capture-record-detail").textContent = active ? captureTime() + " · Video only" : "MP4 · Video only";
-  $("capture-status").textContent = !online ? "PC disconnected. Any recording continues on the PC. Reconnect or stop from its tray menu." : captureState.error || (!captureState.available ? "Screen capture is available with the Windows host." : active ? "Recording your main monitor. Stop to save the video." : "Screenshots → Pictures / WinDock. Recordings → Videos / WinDock.");
+  $("capture-status").textContent = !online ? "PC disconnected. Any recording continues on the PC. Reconnect or stop from its tray menu." : captureState.error || (!captureState.available ? "Screen capture is available with the Windows host." : active ? "Recording your main monitor. Stop to save the video." : "Screenshots → Pictures / MacDoc. Recordings → Videos / MacDoc.");
   const last = captureState.lastCapture;
   $("capture-file").hidden = !last;
   $("capture-file").textContent = last ? "Last saved: " + last.path : "";
@@ -80,7 +84,7 @@ async function captureAction(action) {
     captureState = await api("/api/capture/" + action, { method: "POST", body: "{}" });
     captureReceivedAt = Date.now();
     if (action === "start") { $("capture").close(); notify("Recording started · Tap Stop to save"); }
-    else notify(action === "screenshot" ? "Screenshot saved in Pictures / WinDock" : "Recording saved in Videos / WinDock");
+    else notify(action === "screenshot" ? "Screenshot saved in Pictures / MacDoc" : "Recording saved in Videos / MacDoc");
   } catch (error) { report(error); }
   finally { captureBusy = false; paintCapture(); }
 }
@@ -98,12 +102,13 @@ async function api(path, options = {}) {
   if (res.status === 401 && path !== "/api/auth") { showPair("Enter the current PIN to reconnect."); throw new Error("unauthorized"); }
   if (!res.ok) {
     const detail = (await res.json().catch(() => ({}))).error;
-    const messages = { "wrong pin": "That PIN doesn’t match. Try the PIN shown on your PC.", "invalid pin": "Enter all four digits.", locked: "Too many attempts. Wait a moment and try again.", "internal error": "Your PC couldn’t complete that action. Check the app or device and try again." };
+    const messages = { "wrong pin": "That PIN doesn’t match. Try the PIN shown on your Mac.", "invalid pin": "Enter all four digits.", locked: "Too many attempts. Wait a moment and try again.", "internal error": "Your Mac couldn’t complete that action. Check the app or device and try again." };
     throw new Error(messages[detail] || detail || "The request couldn’t be completed.");
   }
   return res.json();
 }
 function showPair(message = "") {
+  welcome.sync(state, false);
   paired = false;
   paintCapture();
   syncLayout();
@@ -129,7 +134,7 @@ function syncLayout() {
   root.setProperty("--columns", layout.columns);
   root.setProperty("--rows", layout.rows);
   root.setProperty("--icon-size", (layout.immersive ? layout.iconSize : 72) + "px");
-  root.setProperty("--icon-scale", { 4: .44, 6: .38, 8: .32 }[layout.perPage]);
+  root.setProperty("--icon-scale", GRIDS[layout.perPage].scale);
   document.documentElement.dataset.background = layout.background;
   document.documentElement.dataset.theme = layout.theme;
   document.body.classList.toggle("is-immersive", layout.immersive);
@@ -140,13 +145,13 @@ function syncLayout() {
   $("show-labels").checked = layout.showLabels;
   $("show-labels").disabled = !layout.immersive;
   $("glass-theme").value = layout.theme;
-  $("layout-summary").textContent = layout.perPage + " icons · " + layout.columns + " × 2";
+  $("layout-summary").textContent = layout.perPage + " icons · " + layout.columns + " × " + layout.rows;
   document.querySelectorAll("[data-per-page]").forEach((button) => button.setAttribute("aria-pressed", String(Number(button.dataset.perPage) === layout.perPage)));
   document.querySelectorAll("[data-background]").forEach((button) => { if (button.tagName === "BUTTON") button.setAttribute("aria-pressed", String(button.dataset.background === layout.background)); });
 }
 function saveLayout(changes) {
   layout = normalizeLayout({ ...layout, ...changes });
-  try { localStorage.setItem("windock-layout", JSON.stringify(layout)); } catch { /* Device preferences are optional. */ }
+  try { localStorage.setItem("macdoc-layout", JSON.stringify(layout)); } catch { /* Device preferences are optional. */ }
   currentPage = 0; syncLayout(); paint();
 }
 function showPageHint() {
@@ -159,10 +164,11 @@ function paint() {
   const view = { ...state, tiles: state.tiles.map((tile) => tile.kind === "app" ? { ...tile, running: running.has(tile.id) } : tile) };
   const pages = pageCount(state.tiles, layout);
   currentPage = Math.min(currentPage, pages - 1);
+  welcome.sync(state, paired);
   $("dock").innerHTML = renderPages(view, layout, editing);
   $("dock").classList.toggle("is-editing", editing);
   $("dock").scrollTo({ left: currentPage * $("dock").clientWidth, behavior: "instant" });
-  $("host-name").textContent = state.hostName || state.platformName || "Your PC";
+  $("host-name").textContent = state.hostName || state.platformName || "Your Mac";
   $("drawer-host").textContent = $("host-name").textContent;
   document.body.classList.toggle("is-arranging", editing);
   $("edit-done").hidden = !layout.immersive || !editing || !paired;
@@ -223,10 +229,10 @@ async function refresh() {
   await refreshCapture().catch(() => {});
 }
 const powerActions = {
-  lock: ["Lock your PC?", "Your computer will return to its lock screen.", "Lock PC"],
-  sleep: ["Put your PC to sleep?", "WinDock will disconnect until you wake your computer.", "Sleep"],
-  restart: ["Restart your PC?", "Save your work first. WinDock will disconnect while your computer restarts.", "Restart"],
-  shutdown: ["Shut down your PC?", "Save your work first. You’ll need to turn your computer back on to reconnect.", "Shut down"],
+  lock: ["Lock your Mac?", "Your computer will return to its lock screen.", "Lock Mac"],
+  sleep: ["Put your Mac to sleep?", "MacDoc will disconnect until you wake your computer.", "Sleep"],
+  restart: ["Restart your Mac?", "Save your work first. MacDoc will disconnect while your computer restarts.", "Restart"],
+  shutdown: ["Shut down your Mac?", "Save your work first. You’ll need to turn your computer back on to reconnect.", "Shut down"],
 };
 function confirmPower(verb) {
   return new Promise((resolve) => {
@@ -242,7 +248,7 @@ function confirmPower(verb) {
 }
 async function activate(button) {
   if (editing && button.dataset.tileKey) return openTileOptions(button.dataset.tileKey);
-  if (!online) return notify("Your PC is disconnected. Wait for it to reconnect.", true);
+  if (!online) return notify("Your Mac is disconnected. Wait for it to reconnect.", true);
   const { action, key } = button.dataset;
   if (action === "control" && powerActions[key] && !await confirmPower(key)) return;
   button.disabled = true;
@@ -252,7 +258,7 @@ async function activate(button) {
       const raw = button.dataset.value;
       await api("/api/control", { method: "POST", body: JSON.stringify(raw === undefined ? { verb: key } : { verb: key, value: Number(raw) }) });
       if (key.startsWith("media-")) nowPlaying.refresh().catch(() => {});
-      notify(powerActions[key] ? "Command sent to your PC" : "Control sent");
+      notify(powerActions[key] ? "Command sent to your Mac" : "Control sent");
     } else if (action === "launch") {
       const running = state.running.find((item) => item.id === key);
       const title = state.tiles.find((item) => item.id === key)?.label || "App";
@@ -277,7 +283,7 @@ function drawApps() {
   const term = $("filter").value.trim().toLowerCase();
   const matches = installedApps.filter((app) => app.name.toLowerCase().includes(term));
   const pinned = new Set(state.tiles.filter((tile) => tile.kind === "app").map((tile) => tile.id));
-  $("picker-status").textContent = matches.length + " apps" + (term ? " found" : " on your PC") + " · " + pinned.size + " pinned";
+  $("picker-status").textContent = matches.length + " apps" + (term ? " found" : " on your Mac") + " · " + pinned.size + " pinned";
   $("picker-list").innerHTML = matches.length ? matches.map((app) => '<li><button type="button" data-id="' + escapeHtml(app.id) + '"' + (pinned.has(app.id) ? " disabled" : "") + ' aria-label="' + escapeHtml((pinned.has(app.id) ? "Pinned: " : "Add ") + app.name) + '">' + renderAppIcon(app, true) + '<span class="picker__name">' + escapeHtml(app.name) + '<small>' + (pinned.has(app.id) ? "On your dock" : (state.platformName || "Desktop") + " app") + '</small></span><span class="picker__add">' + icon(pinned.has(app.id) ? "check" : "plus") + "</span></button></li>").join("") : '<li class="picker__empty">No apps found. Try a different name.</li>';
 }
 function drawControls() {
@@ -301,7 +307,7 @@ async function openPicker() {
   selectTab("apps");
   if (!$("picker").open) $("picker").showModal();
   if (appsLoaded) drawApps();
-  else { $("picker-status").textContent = "Loading your apps…"; $("picker-list").innerHTML = '<li class="picker__empty">Finding your favorites on this PC…</li>'; }
+  else { $("picker-status").textContent = "Loading your apps…"; $("picker-list").innerHTML = '<li class="picker__empty">Finding your favorites on this Mac…</li>'; }
   try {
     const { apps } = await api("/api/apps/installed");
     installedApps = apps; appsLoaded = true;
@@ -309,7 +315,20 @@ async function openPicker() {
   } catch (error) { $("picker-status").textContent = "Couldn’t load apps. Close the library and try again."; report(error); }
 }
 function openSettings() { $("drawer").close(); syncLayout(); if (!$("settings").open) $("settings").showModal(); }
-function openDrawer() { if (paired && !$("drawer").open) $("drawer").showModal(); }
+function openDrawer() { if (paired && !$("drawer").open) { $("drawer").showModal(); startStats(); } }
+let statsTimer = null;
+function formatStats(stats) {
+  const parts = [];
+  if (Number.isFinite(stats?.cpu)) parts.push("CPU " + stats.cpu + "%");
+  if (Number.isFinite(stats?.memory)) parts.push("Memory " + stats.memory + "%");
+  if (Number.isFinite(stats?.battery)) parts.push("Battery " + stats.battery + "%" + (stats.charging ? " ⚡" : ""));
+  return parts.join(" · ");
+}
+async function refreshStats() {
+  try { const text = formatStats(await api("/api/stats")); $("drawer-stats").textContent = text; $("drawer-stats").hidden = !text; }
+  catch { $("drawer-stats").hidden = true; }
+}
+function startStats() { clearInterval(statsTimer); refreshStats(); statsTimer = setInterval(refreshStats, 5000); }
 
 $("picker-list").addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-id]");
@@ -494,6 +513,9 @@ $("drawer-settings").addEventListener("click", openSettings);
 $("drawer-apps").addEventListener("click", () => { $("drawer").close(); openPicker(); });
 $("drawer-controls").addEventListener("click", () => { $("drawer").close(); $("controls-grid").innerHTML = renderControls(state.verbs, state.allowDestructive); $("controls").showModal(); });
 $("drawer-capture").addEventListener("click", openCapture);
+const clipboardSheet = createClipboardSheet({ api, notify, hostName: () => state.hostName || "your computer" });
+$("drawer-clipboard").addEventListener("click", () => { $("drawer").close(); clipboardSheet.open().catch(report); });
+$("drawer").addEventListener("close", () => clearInterval(statsTimer));
 const inputPad = createInputPad({ api, notify, WebSocketClass: WebSocket, storage: localStorage });
 $("drawer-input").addEventListener("click", () => inputPad.open());
 $("capture-screenshot").addEventListener("click", () => captureAction("screenshot"));
@@ -546,7 +568,7 @@ if ("serviceWorker" in navigator) {
 syncLayout();
 (async function boot() {
   try { await refresh(); showApp(); connect(); }
-  catch (error) { showPair(error.message === "unauthorized" ? "" : "Start WinDock on your PC, then connect with its PIN."); }
+  catch (error) { showPair(error.message === "unauthorized" ? "" : "Start MacDoc on your Mac, then connect with its PIN."); }
 })();
 // Refresh when returning to the dock. No background native polling while hidden.
 document.addEventListener("visibilitychange", () => { if (!document.hidden && paired) refresh().then(connect).catch(report); });

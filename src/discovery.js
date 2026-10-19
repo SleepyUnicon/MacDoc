@@ -13,8 +13,8 @@ import { networkInterfaces } from "node:os";
 import { isIPv4 } from "node:net";
 
 export const DISCOVERY_PORT = 41234;
-export const PROBE = "windock:discover:v1";
-export const REPLY_PREFIX = "windock:here:v1:";
+export const PROBE = "macdoc:discover:v1";
+export const REPLY_PREFIX = "macdoc:here:v1:";
 export const MAX_PROBE_BYTES = 64;
 
 /** Prefer a physical LAN adapter over VPNs and VM/container networks. */
@@ -33,7 +33,7 @@ export function primaryAddress(interfaces = networkInterfaces(), preferred = "")
   }
   if (preferred) {
     if (!isIPv4(preferred) || !candidates.some((entry) => entry.address === preferred)) {
-      throw new Error("WINDOCK_HOST must be an IPv4 address assigned to this computer");
+      throw new Error("MACDOC_HOST must be an IPv4 address assigned to this computer");
     }
     return preferred;
   }

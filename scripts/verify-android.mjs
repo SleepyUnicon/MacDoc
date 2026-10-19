@@ -18,9 +18,9 @@ const read = (p) => readFileSync(join(AND, p), "utf8");
 // ---- the sources exist ----
 const REQUIRED = [
   "app/src/main/AndroidManifest.xml",
-  "app/src/main/java/com/windock/app/MainActivity.kt",
-  "app/src/main/java/com/windock/app/Discovery.kt",
-  "app/src/main/java/com/windock/app/ServerUrl.kt",
+  "app/src/main/java/com/macdoc/app/MainActivity.kt",
+  "app/src/main/java/com/macdoc/app/Discovery.kt",
+  "app/src/main/java/com/macdoc/app/ServerUrl.kt",
   "app/src/main/res/layout/activity_main.xml",
   "app/src/main/res/values/strings.xml",
   "app/src/main/res/xml/network_security_config.xml",
@@ -33,7 +33,7 @@ for (const file of REQUIRED) {
 }
 
 // ---- protocol agreement: the whole point of this gate ----
-const disco = read("app/src/main/java/com/windock/app/Discovery.kt");
+const disco = read("app/src/main/java/com/macdoc/app/Discovery.kt");
 
 const kotlinPort = Number(disco.match(/const val PORT\s*=\s*(\d+)/)?.[1]);
 t.equal(kotlinPort, DISCOVERY_PORT, "Kotlin discovery PORT matches the host");
@@ -59,14 +59,14 @@ t.equal(parseReply(answer), "http://192.168.1.40:8620", "the host can parse its 
 // Negative control: a deliberately wrong prefix must fail, proving the checks
 // above are not passing vacuously.
 t.equal(
-  "windock:here:v0:http://x".startsWith(kotlinPrefix),
+  "macdoc:here:v0:http://x".startsWith(kotlinPrefix),
   false,
   "negative control: a version-mismatched reply is not accepted",
 );
 
 // ---- the app must only use routes the host serves ----
 const server = readFileSync(join(root, "server.js"), "utf8");
-const main = read("app/src/main/java/com/windock/app/MainActivity.kt");
+const main = read("app/src/main/java/com/macdoc/app/MainActivity.kt");
 const routes = [...main.matchAll(/"\$endpoint(\/[a-z/]+)"/g)].map((m) => m[1]);
 t.ok(routes.length > 0, `the app references at least one host route (${routes.join(", ")})`);
 for (const route of routes) {
@@ -75,7 +75,7 @@ for (const route of routes) {
 // /health is the only unauthenticated route, so a reachability probe must use it.
 t.ok(routes.includes("/health"), "the app probes /health, the only public route");
 t.ok(
-  main.includes('optString("app") == "windock"'),
+  main.includes('optString("app") == "macdoc"'),
   "the app verifies the host identity, not just a 200",
 );
 
@@ -103,7 +103,7 @@ function stripComments(source) {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 }
 const kotlinCode = stripComments(
-  [disco, main, read("app/src/main/java/com/windock/app/ServerUrl.kt")].join("\n"),
+  [disco, main, read("app/src/main/java/com/macdoc/app/ServerUrl.kt")].join("\n"),
 );
 for (const word of ["pin", "cookie", "token"]) {
   t.ok(
@@ -123,7 +123,7 @@ t.ok(
 
 // ---- build config sanity ----
 const appGradle = read("app/build.gradle");
-t.ok(/namespace\s+'com\.windock\.app'/.test(appGradle), "the gradle namespace matches the package");
+t.ok(/namespace\s+'com\.macdoc\.app'/.test(appGradle), "the gradle namespace matches the package");
 t.ok(/minSdk\s+(\d+)/.test(appGradle), "a minSdk is declared");
 t.ok(Number(appGradle.match(/minSdk\s+(\d+)/)[1]) >= 24, "minSdk is at least 24 for modern WebView behaviour");
 t.ok(read("settings.gradle").includes("include ':app'"), "the app module is included in the build");

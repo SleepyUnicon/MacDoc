@@ -1,4 +1,4 @@
-package com.windock.app
+package com.macdoc.app
 
 import android.content.Context
 import android.text.InputFilter

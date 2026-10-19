@@ -11,17 +11,17 @@ function spawn(file, args, options) {
   child.kill = () => { child.killed = true; child.emit("close", null); };
   child.message = (message) => child.stdout.write(JSON.stringify(message) + "\n");
   child.finish = (code = 0) => { child.stdout.end(); child.stderr.end(); child.emit("close", code); };
-  child.saved = (kind = "recording") => child.message({ type: "saved", name: "capture.mp4", path: "C:\\Videos\\WinDock\\capture.mp4", kind });
+  child.saved = (kind = "recording") => child.message({ type: "saved", name: "capture.mp4", path: "C:\\Videos\\MacDoc\\capture.mp4", kind });
   children.push({ child, file, args, options });
   return child;
 }
-const capture = createWindowsCapture({ helperPath: "C:\\Win Dock & safe\\helper.exe", spawn, startupMs: 1000, stopMs: 1000 });
+const capture = createWindowsCapture({ helperPath: "C:\\Mac Doc & safe\\helper.exe", spawn, startupMs: 1000, stopMs: 1000 });
 t.equal(capture.status().phase, "idle", "starts idle without a capture process");
 t.equal(children.length, 0, "status never starts native work");
 const first = capture.start(), duplicate = capture.start();
 t.equal(children.length, 1, "duplicate start shares one worker");
 t.deepEqual(children[0].args, ["capture", "record"], "only fixed recording argv reaches helper");
-t.equal(children[0].file, "C:\\Win Dock & safe\\helper.exe", "helper path remains opaque");
+t.equal(children[0].file, "C:\\Mac Doc & safe\\helper.exe", "helper path remains opaque");
 t.equal(children[0].options.shell, false, "never invokes a shell");
 t.equal(children[0].options.windowsHide, true, "no command window");
 t.equal(capture.status().phase, "starting", "starting is visible");

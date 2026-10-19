@@ -14,7 +14,7 @@ export const PIN_LENGTH = 4;
 export const MAX_FAILS = 5;
 export const LOCK_MS = 60_000;
 export const SESSION_TTL_MS = 180 * 24 * 60 * 60 * 1000; // 180 days
-export const COOKIE_NAME = "windock_session";
+export const COOKIE_NAME = "macdoc_session";
 
 /** Cryptographically uniform PIN; avoids the modulo bias of randomBytes % 10. */
 export function newPin(length = PIN_LENGTH) {

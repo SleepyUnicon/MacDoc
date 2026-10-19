@@ -1,5 +1,5 @@
 /**
- * WinDock host.
+ * MacDoc host.
  *
  * Serves the PWA, exposes the authenticated API, answers LAN discovery, and
  * broadcasts dock state over WebSocket. Platform work is delegated entirely to
@@ -11,6 +11,7 @@ import { hostname } from "node:os";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { createProvider } from "./src/platform/index.js";
+import { createClipboardHub, validateClipboardText } from "./src/clipboard.js";
 import { validateControl, isDestructiveVerb, CONTROL_VERBS } from "./src/platform/contract.js";
 import { createConfigStore } from "./src/config.js";
 import { createSyncHub } from "./src/sync.js";
@@ -127,6 +128,7 @@ export async function createApp({
 } = {}) {
   const state = { pin };
   const appIcon = createIconCache(provider);
+  const clipboard = createClipboardHub({ provider });
   let inventoryPromise;
   let inventoryTime = 0;
   function installedApps() {
@@ -166,7 +168,7 @@ export async function createApp({
 
     try {
       if (path === "/health") {
-        sendJson(res, 200, { ok: true, app: "windock", platform: provider.id });
+        sendJson(res, 200, { ok: true, app: "macdoc", platform: provider.id });
         return;
       }
 
@@ -300,6 +302,17 @@ export async function createApp({
         return sendJson(res, 200, await provider.capture[captureActions[path]]());
       }
 
+      if (path === "/api/clipboard" && req.method === "GET") {
+        return sendJson(res, 200, await clipboard.snapshot());
+      }
+      if (path === "/api/clipboard" && req.method === "POST") {
+        const text = validateClipboardText(await readJsonBody(req));
+        return sendJson(res, 200, await clipboard.write(text));
+      }
+      if (path === "/api/clipboard/history" && req.method === "DELETE") {
+        return sendJson(res, 200, clipboard.clearHistory());
+      }
+
       if (path === "/api/stats" && req.method === "GET") {
         return sendJson(res, 200, await provider.systemStats().catch(() => ({})));
       }
@@ -337,10 +350,12 @@ export async function createApp({
     authorize({ req, sessions, lockout, remote: req.socket.remoteAddress || "", trustLoopback }).ok,
   });
   server.on("close", () => { provider.capture?.dispose().catch(() => {}); provider.input?.dispose(); });
-  return { server, hub, inputHub, provider, configStore, dockState, state, sessions, lockout };
+  clipboard.start();
+  server.on("close", () => clipboard.stop());
+  return { server, hub, inputHub, clipboard, provider, configStore, dockState, state, sessions, lockout };
 }
 
-export async function start({ port = Number(process.env.PORT) || DEFAULT_PORT, host = process.env.WINDOCK_HOST || "" } = {}) {
+export async function start({ port = Number(process.env.PORT) || DEFAULT_PORT, host = process.env.MACDOC_HOST || "" } = {}) {
   const address = primaryAddress(undefined, host);
   const app = await createApp();
   await new Promise((resolve, reject) => {
@@ -359,11 +374,11 @@ if (isMain) {
   start()
     .then(({ endpoint, state, provider }) => {
       process.stdout.write(
-        `WinDock host ready\n  provider: ${provider.displayName}\n  open:     ${endpoint}\n  PIN:      ${state.pin}\n`,
+        `MacDoc host ready\n  provider: ${provider.displayName}\n  open:     ${endpoint}\n  PIN:      ${state.pin}\n`,
       );
     })
     .catch((err) => {
-      process.stderr.write(`WinDock failed to start: ${err.message}\n`);
+      process.stderr.write(`MacDoc failed to start: ${err.message}\n`);
       process.exit(1);
     });
 }

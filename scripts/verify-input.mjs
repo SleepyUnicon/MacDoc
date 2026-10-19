@@ -98,7 +98,7 @@ const save = native.saveSignature(signature); const image = children.at(-1);
 t.deepEqual(image.args, ["signature"], "signature cannot choose a destination or argv");
 t.deepEqual(JSON.parse(image.child.stdin.read().toString()), signature, "only validated stroke data enters helper");
 await t.rejects(() => native.saveSignature(signature), "concurrent save is refused");
-image.child.message({ type: "saved", path: "C:\\Pictures\\WinDock\\Signatures\\test.png" }); image.child.emit("close", 0);
+image.child.message({ type: "saved", path: "C:\\Pictures\\MacDoc\\Signatures\\test.png" }); image.child.emit("close", 0);
 t.ok((await save).path.endsWith("test.png"), "save waits for native success");
 const insert = native.saveSignature(signature, true); const pasted = children.at(-1);
 t.deepEqual(pasted.args, ["signature-insert"], "insertion uses a fixed helper verb");
@@ -111,7 +111,7 @@ t.ok(children.at(-1).child.killed, "unresponsive helper is bounded"); native.dis
 
 const received = [], sessions = [], provider = { id: "test", displayName: "Test", listRunningApps: async () => [], input: {
   open(_fail, emit) { emit({ type: "focus", target: "1", editable: true, password: false }); const session = { closed: false, ready: Promise.resolve(), send: (value) => received.push(value), close() { session.closed = true; } }; sessions.push(session); return session; },
-  saveSignature: async () => ({ type: "saved", path: "Pictures/WinDock/Signatures/example.png" }), dispose() {},
+  saveSignature: async () => ({ type: "saved", path: "Pictures/MacDoc/Signatures/example.png" }), dispose() {},
 } };
 const app = await createApp({ provider, pin: "4321", trustLoopback: false, configStore: { load: async () => ({ tiles: [] }) } });
 await new Promise((resolve) => app.server.listen(0, "127.0.0.1", resolve));

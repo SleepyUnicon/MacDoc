@@ -1,4 +1,4 @@
-# WinDock Roadmap
+# MacDoc Roadmap
 
 Updated 2026-09-18 after continuing the original Linux experiment on Windows.
 
@@ -11,7 +11,7 @@ this needs a separate Windows foreground-focus investigation.
 ## Main-monitor capture — 2026-09-18
 
 The drawer now offers full-resolution PNG screenshots and silent MP4 recordings,
-saved to the PC's Pictures/WinDock and Videos/WinDock folders. Recording includes
+saved to the PC's Pictures/MacDoc and Videos/MacDoc folders. Recording includes
 a phone timer/Stop button, state recovery after reconnecting, a Windows tray
 Stop action and folder shortcuts, and a 60-minute limit. Windows' built-in H.264
 encoder needs no additional install. Output preserves aspect ratio within
@@ -28,7 +28,7 @@ Native file checks and authenticated API/error/lifecycle tests pass.
 - Verified native launch arguments, running-window enumeration, focus, polite
   close, volume read/set at the current level, and the now-playing command.
 - Verified tray startup, URL/PIN parsing, and shutdown of its child server.
-- Preferred the physical LAN interface over VPN/VM adapters; added `WINDOCK_HOST`
+- Preferred the physical LAN interface over VPN/VM adapters; added `MACDOC_HOST`
   for explicitly selecting another address assigned to this computer.
 - Preserved shortcut argument strings and distinct shortcut profiles/modes.
 - Verified PIN pairing, live sync, real app inventory, tile add/edit/remove and
@@ -72,7 +72,7 @@ settings. Desktop browser checks cannot establish the feel of real touch input.
 The user has confirmed connectivity; the exact Android launch/focus evidence
 for G14 has not been recorded yet.
 
-1. Run `artifacts\WinDock-win-x64\WinDockTray.exe` on the PC.
+1. Run `artifacts\MacDoc-win-x64\MacDocTray.exe` on the PC.
 2. Put the phone and PC on the same LAN; use the URL/PIN shown by the tray.
 3. Open that URL in the phone browser, pair, add an app and verify launch/focus.
 4. Confirm LAN reachability through the PC firewall and actual router. Local
@@ -88,7 +88,7 @@ shortcut with a verified offline PWA.
 
 ## Completed: installable Android test app
 
-`npm run build:android` now produces `artifacts/WinDock-android-debug.apk` using
+`npm run build:android` now produces `artifacts/MacDoc-android-debug.apk` using
 Gradle 8.9, AGP 8.5.2, Kotlin 1.9.24, SDK 34 and Android Studio's Java 21. The
 wrapper includes Gradle's official SHA256. Adaptive/legacy launcher icons,
 dark connection screen, manual address/retry, strict LAN URL validation,
@@ -136,14 +136,14 @@ launch/icon/activation arguments, and malformed identifiers.
 
 ## Later polish
 
-The product website is live at [windock.vercel.app](https://windock.vercel.app):
+The product website is live at [macdoc.vercel.app](https://macdoc.vercel.app):
 responsive ivory-and-sage design, the actual app UI as an isolated interactive
 demo, setup/FAQ, and direct Windows installer and Android APK downloads with
 checksums. The GitHub repository is public and release `v0.1.0-preview.1`
 contains both GitHub-built downloads. Pushes to `main` deploy the website on
 Vercel. `npm run website` still serves local review at http://127.0.0.1:4173.
 
-The Windows tray and executable now use the mint/blue WinDock four-tile mark,
+The Windows tray and executable now use the mint/blue MacDoc four-tile mark,
 embedded at nine sizes from 16 to 256px (2026-09-18). The updated tray build and
 isolated startup/shutdown smoke pass; it is installed in the running package.
 
@@ -153,7 +153,7 @@ The Windows installer now provides optional sign-in startup, Start menu/desktop
 shortcuts, and uninstall support. A local install/launch/reinstall/uninstall test
 passed and preserved the user's dock. `.github/workflows/build-release.yml`
 prepares GitHub builds and optional draft releases with direct EXE/APK links.
-The first [GitHub run](https://github.com/aliihsaad/WinDock/actions/runs/35344001331)
+The first [GitHub run](https://github.com/SleepyUnicon/MacDoc/actions/runs/35344001331)
 passed Windows build, installer install/launch/upgrade/uninstall, and Android
 build, unit tests, lint, and signature checks on 2026-09-18.
 
@@ -169,7 +169,7 @@ multi-host control.
   bounded/rate-limited messages, per-frame session checks, heartbeat expiry,
   and a persistent Windows helper that releases held buttons on EOF or timeout.
 - Signature canvas with undo, clear, black/blue ink, and transparent 1600×600 PNG
-  export to `Pictures\WinDock\Signatures`; folder accessible from the tray.
+  export to `Pictures\MacDoc\Signatures`; folder accessible from the tray.
 - Existing Android WebView loads the updated shared interface; no new APK needed.
 - Website demo uses simulated input/export and never controls the visitor's PC.
 - Node integration/gesture checks and native input-layout/rendering checks added.
@@ -223,6 +223,6 @@ npm run gates
 ```
 
 The build finds `.tools\dotnet\dotnet.exe` first, then an SDK on PATH. The
-resulting `artifacts\WinDock-win-x64` folder includes its runtimes and can be
+resulting `artifacts\MacDoc-win-x64` folder includes its runtimes and can be
 launched without installing Node or .NET globally. The native smoke check uses
 an isolated test window and does not execute shutdown, restart, lock or sleep.

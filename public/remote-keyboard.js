@@ -3,13 +3,13 @@ export function createRemoteKeyboard({ send, isReady, onSignature, notify }) {
   const $ = id => document.getElementById(id);
   const panel = $("remote-keyboard"), field = $("remote-keyboard-text"), button = $("touchpad-keyboard");
   let focus = null, supported = false, opened = false, requested = false, composing = false;
-  const native = () => typeof window.WinDockAndroid?.showKeyboard === "function";
+  const native = () => typeof window.MacDocAndroid?.showKeyboard === "function";
   function close() {
     opened = requested = composing = false;
     panel.hidden = true; field.value = ""; field.blur();
     $("input-pad").dataset.keyboard = "false";
     button.setAttribute("aria-pressed", "false");
-    try { window.WinDockAndroid?.hideKeyboard(); } catch { /* browser fallback */ }
+    try { window.MacDocAndroid?.hideKeyboard(); } catch { /* browser fallback */ }
   }
   function transmit(message) {
     if (!opened || !focus || !isReady()) return false;
@@ -26,7 +26,7 @@ export function createRemoteKeyboard({ send, isReady, onSignature, notify }) {
     $("input-pad").dataset.keyboard = "true";
     button.setAttribute("aria-pressed", "true");
     if (native()) {
-      try { window.WinDockAndroid.showKeyboard(focus.target, focus.password); return; }
+      try { window.MacDocAndroid.showKeyboard(focus.target, focus.password); return; }
       catch { /* continue with browser keyboard */ }
     }
     panel.hidden = false;
@@ -50,7 +50,7 @@ export function createRemoteKeyboard({ send, isReady, onSignature, notify }) {
       event.preventDefault(); commit(); transmit({ type: "key", key: event.key });
     }
   });
-  window.addEventListener("windock-keyboard-input", event => {
+  window.addEventListener("macdoc-keyboard-input", event => {
     const data = event.detail;
     if (!native() || !data || data.target !== focus?.target) return;
     if (data.type === "text" && typeof data.text === "string" && data.text.length <= 1024)
@@ -58,7 +58,7 @@ export function createRemoteKeyboard({ send, isReady, onSignature, notify }) {
     else if (data.type === "key" && ["Backspace", "Delete", "Enter", "Tab", "Escape", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(data.key))
       transmit({ type: "key", key: data.key });
   });
-  window.addEventListener("windock-keyboard-action", event => {
+  window.addEventListener("macdoc-keyboard-action", event => {
     if (!native() || !isReady()) return;
     close();
     if (event.detail?.action === "signature") onSignature();

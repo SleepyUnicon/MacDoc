@@ -21,10 +21,10 @@ config.json
 artifacts/
 website/demo/
 .vercel/
-WinDockHelper.exe
+MacDocHelper.exe
 android/.gradle/
 android/local.properties
 android/**/build/
-ios/WinDock.xcodeproj/
+ios/MacDoc.xcodeproj/
 ios/build/
 ios/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png

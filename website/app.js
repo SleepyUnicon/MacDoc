@@ -161,32 +161,32 @@ new ResizeObserver(fitPreview).observe(previewScreen);
 fitPreview();
 window.addEventListener('message', event => {
   if (event.source !== frame.contentWindow || event.origin !== location.origin) return;
-  if (event.data?.type === 'windock-preview-typed' && typeof event.data.text === 'string') {
+  if (event.data?.type === 'macdoc-preview-typed' && typeof event.data.text === 'string') {
     document.querySelector('#demo-typing').hidden = false;
     document.querySelector('#demo-typed-text').textContent = event.data.text.slice(0, 500) || 'Your demo text will appear here.';
     return;
   }
-  if (event.data?.type === 'windock-preview-opened') {
+  if (event.data?.type === 'macdoc-preview-opened') {
     previewScreen.scrollIntoView({ block: 'center', behavior: stillEmblem.matches ? 'instant' : 'smooth' });
     return;
   }
-  if (event.data?.type !== 'windock-preview-layout') return;
+  if (event.data?.type !== 'macdoc-preview-layout') return;
   document.querySelectorAll('[data-density-choice]').forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.densityChoice) === event.data.perPage)));
 });
 document.querySelectorAll('[data-density-choice]').forEach(button => button.addEventListener('click', () => {
-  frame.contentWindow.postMessage({ type: 'windock-preview-density', perPage: Number(button.dataset.densityChoice) }, location.origin);
+  frame.contentWindow.postMessage({ type: 'macdoc-preview-density', perPage: Number(button.dataset.densityChoice) }, location.origin);
 }));
 document.querySelector('#preview-drawer').addEventListener('click', () => {
-  frame.contentWindow.postMessage({ type: 'windock-preview-drawer' }, location.origin);
+  frame.contentWindow.postMessage({ type: 'macdoc-preview-drawer' }, location.origin);
 });
 document.querySelector('#preview-capture').addEventListener('click', () => {
-  frame.contentWindow.postMessage({ type: 'windock-preview-capture' }, location.origin);
+  frame.contentWindow.postMessage({ type: 'macdoc-preview-capture' }, location.origin);
 });
 for (const mode of ['touchpad', 'signature']) document.querySelector('#preview-' + mode).addEventListener('click', () => {
-  frame.contentWindow.postMessage({ type: 'windock-preview-input', mode }, location.origin);
+  frame.contentWindow.postMessage({ type: 'macdoc-preview-input', mode }, location.origin);
 });
 document.querySelector('#demo-clear-text').addEventListener('click', () => {
-  frame.contentWindow.postMessage({ type: 'windock-preview-clear-text' }, location.origin);
+  frame.contentWindow.postMessage({ type: 'macdoc-preview-clear-text' }, location.origin);
 });
 
 const downloadStatus = document.querySelector('#download-status');

@@ -1,12 +1,16 @@
-package com.windock.app
+package com.macdoc.app
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.view.Gravity
 import android.webkit.JavascriptInterface
+import android.webkit.RenderProcessGoneDetail
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.view.inputmethod.InputMethodManager
@@ -28,8 +32,12 @@ import java.io.ByteArrayInputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
+import java.util.concurrent.FutureTask
+import java.util.concurrent.TimeUnit
 
 /** Native discovery/connection shell; the shared web UI owns pairing and the dock. */
+private const val CLIPBOARD_MAX_CHARS = 20_000
+
 class MainActivity : Activity() {
     private lateinit var web: WebView
     private lateinit var connection: View
@@ -81,7 +89,7 @@ class MainActivity : Activity() {
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         }
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
-        web.addJavascriptInterface(KeyboardBridge(), "WinDockAndroid")
+        web.addJavascriptInterface(KeyboardBridge(), "MacDocAndroid")
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
                 !EndpointPolicy.allowsRequest(endpoint, request.url.toString())
@@ -109,6 +117,19 @@ class MainActivity : Activity() {
 
             override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, errorResponse: WebResourceResponse) {
                 if (request.isForMainFrame) failConnection(R.string.connection_lost)
+            }
+
+            /**
+             * Low-memory tablets kill the WebView renderer. Without this the
+             * whole app would crash; instead drop the dead WebView and rebuild
+             * the screen, which reconnects to the remembered Mac.
+             */
+            override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                web.removeCallbacks(loadTimeout)
+                (view.parent as? ViewGroup)?.removeView(view)
+                view.destroy()
+                recreate()
+                return true
             }
         }
         hideSystemBars()
@@ -158,13 +179,13 @@ class MainActivity : Activity() {
         val target = keyboardTarget ?: return
         if (!trustedKeyboardPage()) return
         message.put("target", target)
-        web.evaluateJavascript("window.dispatchEvent(new CustomEvent('windock-keyboard-input',{detail:$message}))", null)
+        web.evaluateJavascript("window.dispatchEvent(new CustomEvent('macdoc-keyboard-input',{detail:$message}))", null)
     }
 
     private fun emitKeyboardEvent(action: String) {
         if (!trustedKeyboardPage()) return
         val data = JSONObject().put("action", action)
-        web.evaluateJavascript("window.dispatchEvent(new CustomEvent('windock-keyboard-action',{detail:$data}))", null)
+        web.evaluateJavascript("window.dispatchEvent(new CustomEvent('macdoc-keyboard-action',{detail:$data}))", null)
     }
 
     private fun hideRemoteKeyboard() {
@@ -192,7 +213,30 @@ class MainActivity : Activity() {
             }
         }
         @JavascriptInterface fun hideKeyboard() { runOnUiThread { hideRemoteKeyboard() } }
+
+        /** Copies text from the paired dock into this device's clipboard. */
+        @JavascriptInterface fun copyText(text: String): Boolean = onUiThread {
+            if (!trustedKeyboardPage()) return@onUiThread false
+            clipboard().setPrimaryClip(ClipData.newPlainText("MacDoc", text.take(CLIPBOARD_MAX_CHARS)))
+            true
+        } ?: false
+
+        /** Reads this device's clipboard for the paired dock; the app is in the foreground while it asks. */
+        @JavascriptInterface fun readText(): String = onUiThread {
+            if (!trustedKeyboardPage()) return@onUiThread ""
+            val clip = clipboard().primaryClip
+            if (clip == null || clip.itemCount == 0) "" else clip.getItemAt(0).coerceToText(this@MainActivity).toString().take(CLIPBOARD_MAX_CHARS)
+        } ?: ""
     }
+
+    private fun clipboard() = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+
+    /** JavaScript bridge calls arrive on a binder thread; WebView and clipboard state belong to the UI thread. */
+    private fun <T> onUiThread(block: () -> T): T? = try {
+        val task = FutureTask(block)
+        runOnUiThread(task)
+        task.get(2, TimeUnit.SECONDS)
+    } catch (_: Exception) { null }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
@@ -272,7 +316,7 @@ class MainActivity : Activity() {
                     if (read == -1) break
                     count += read
                 }
-                count <= 4096 && JSONObject(String(body, 0, count)).optString("app") == "windock"
+                count <= 4096 && JSONObject(String(body, 0, count)).optString("app") == "macdoc"
             }
         } catch (_: Exception) { false }
         finally { conn?.disconnect() }

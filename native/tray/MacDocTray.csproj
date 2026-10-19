@@ -6,19 +6,19 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>WinDockTray</AssemblyName>
+    <AssemblyName>MacDocTray</AssemblyName>
     <Version>0.2.1</Version>
     <InformationalVersion>0.2.1-preview.1</InformationalVersion>
-    <RootNamespace>WinDock.Tray</RootNamespace>
+    <RootNamespace>MacDoc.Tray</RootNamespace>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\WinDock.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\MacDoc.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Assets\WinDock.ico" LogicalName="WinDock.Tray.WinDock.ico" />
+    <EmbeddedResource Include="Assets\MacDoc.ico" LogicalName="MacDoc.Tray.MacDoc.ico" />
   </ItemGroup>
 
 </Project>

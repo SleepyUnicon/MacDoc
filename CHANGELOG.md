@@ -8,25 +8,25 @@
   archives. This is not an installable iPhone release; signing and physical testing
   are still pending. This is separate from the Windows maintenance releases below.
 
-## [0.2.1-preview.1](https://github.com/aliihsaad/WinDock/releases/tag/v0.2.1-preview.1) — October 17, 2026
+## [0.2.1-preview.1](https://github.com/SleepyUnicon/MacDoc/releases/tag/v0.2.1-preview.1) — October 17, 2026
 
 - Update the playing track, artist and playback state automatically while the dock
   is connected and visible. No Refresh tap is needed. Thanks to
-  [Peter-KIbe](https://github.com/Peter-KIbe) for [reporting #1](https://github.com/aliihsaad/WinDock/issues/1).
+  [Peter-KIbe](https://github.com/Peter-KIbe) for [reporting #1](https://github.com/SleepyUnicon/MacDoc/issues/1).
 - Pause media polling in the background, refresh on return, and recover from
   temporary failures without overlapping requests or replacing unchanged controls.
 - Add **Check for updates** to the Windows tray and a startup notification when
   a newer published Windows release is available. Notifications and the download
   menu open the release page; installation remains manual.
 
-Quit WinDock from the PC tray and run the new Windows installer. Dock settings
+Quit MacDoc from the PC tray and run the new Windows installer. Dock settings
 are preserved. Reconnect the phone app to load the updated interface. **No Android
 update is needed for this fix**: the APK is the unchanged 0.2.0-preview.1 build
 (version code 3). Older Windows installations need this one manual update before
 they can notify you about future releases. Windows notification settings may
 hide startup notifications; the tray check remains available.
 
-## [0.2.0-preview.1](https://github.com/aliihsaad/WinDock/releases/tag/v0.2.0-preview.1) — October 11, 2026
+## [0.2.0-preview.1](https://github.com/SleepyUnicon/MacDoc/releases/tag/v0.2.0-preview.1) — October 11, 2026
 
 - Use the phone as a full-screen touchpad, with a small grid and blue touch glow.
 - Move, click, drag, scroll with two fingers, adjust pointer speed, and pinch to zoom in apps that support Ctrl + mouse wheel.
@@ -46,7 +46,7 @@ keyboard opening depends on the PC app exposing text focus; use the keyboard
 button otherwise. A signature is a handwritten PNG image, not a certificate-based
 digital signature. Pasting requires an app that accepts images.
 
-## [0.1.0-preview.1](https://github.com/aliihsaad/WinDock/releases/tag/v0.1.0-preview.1) — September 18, 2026
+## [0.1.0-preview.1](https://github.com/SleepyUnicon/MacDoc/releases/tag/v0.1.0-preview.1) — September 18, 2026
 
 - First public Windows installer and Android companion.
 - Landscape app dock with real icons, 4/6/8 icons per page, drag rearranging, backgrounds and glass themes.

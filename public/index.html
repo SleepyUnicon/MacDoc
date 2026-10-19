@@ -5,32 +5,60 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#101719">
 <meta name="color-scheme" content="dark">
-<title>WinDock</title>
+<title>MacDoc</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <div id="wallpaper" class="wallpaper" aria-hidden="true"><span></span><span></span><span></span></div>
+<div id="intro" class="intro" aria-hidden="true">
+  <div class="intro__stage">
+    <div class="logo-mark logo-mark--intro"><i></i><i></i><i></i><i></i></div>
+    <div class="intro__name"><span>Mac</span><span>Doc</span></div>
+    <p class="intro__tagline">Your Mac, one tap away.</p>
+  </div>
+</div>
 <div id="rotate" class="rotate">
   <div class="rotate__device" data-icon="monitor"></div><h1>A wider point of view.</h1>
-  <p>Turn your phone sideways to use WinDock.</p><span class="eyebrow">YOUR DESKTOP, WITHIN REACH</span>
+  <p>Turn your phone sideways to use MacDoc.</p><span class="eyebrow">YOUR DESKTOP, WITHIN REACH</span>
 </div>
 <div id="pair" class="pair" hidden>
-  <div class="pair__intro"><div class="brand"><span data-icon="grid"></span>WinDock<span class="brand__dot"></span></div><h1>Your PC.<br><em>Within reach.</em></h1><p>Your favorites. Your controls. A space of your own.</p></div>
+  <div class="pair__intro"><div class="brand"><div class="logo-mark logo-mark--small"><i></i><i></i><i></i><i></i></div>MacDoc</div><h1>Your Mac.<br><em>Within reach.</em></h1><p>Your apps, your music and your clipboard, one tap away.</p></div>
   <form id="pair-form" class="pair__card">
-    <p class="eyebrow">MAKE THE CONNECTION</p><h2>Hello, desktop.</h2>
-    <p class="pair__hint">Enter the PIN from your PC’s WinDock tray<br>→ Show connection info.</p>
+    <p class="eyebrow">MAKE THE CONNECTION</p><h2>Hello, Mac.</h2>
+    <p class="pair__hint">Enter the 4-digit PIN MacDoc shows<br>on your Mac when it starts.</p>
     <input id="pin" class="pair__pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="····" autocomplete="one-time-code" aria-label="PIN" required>
     <p id="pair-error" class="pair__error" role="alert"></p>
-    <button class="button button--primary pair__go" type="submit">Connect to your PC <span data-icon="arrow"></span></button>
+    <button class="button button--primary pair__go" type="submit">Connect to your Mac <span data-icon="arrow"></span></button>
     <p class="pair__note">Both devices need to be on the same network.</p>
   </form>
 </div>
 
+<section id="welcome" class="welcome" aria-labelledby="welcome-title" hidden>
+  <header class="welcome__hero">
+    <div class="welcome__brand"><div class="logo-mark"><i></i><i></i><i></i><i></i></div><h1 id="welcome-title">MacDoc</h1></div>
+    <p class="welcome__lede">Turn this screen into a dock for your Mac. Launch your apps with a tap, control your music, and pass text back and forth with a shared clipboard.</p>
+    <ul class="welcome__features">
+      <li><span data-icon="grid"></span>Launch apps</li>
+      <li><span data-icon="music"></span>Control playback</li>
+      <li><span data-icon="clipboard"></span>Share the clipboard</li>
+      <li><span data-icon="sliders"></span>Volume &amp; stats</li>
+    </ul>
+  </header>
+  <div class="welcome__picker">
+    <div class="welcome__picker-head">
+      <div><h2>Pick your apps</h2><p id="welcome-count">Loading your apps…</p></div>
+      <label class="welcome__search"><span data-icon="search"></span><input id="welcome-filter" type="search" placeholder="Find an app…" aria-label="Find an app" autocomplete="off"></label>
+    </div>
+    <ul id="welcome-apps" class="welcome__apps" aria-label="Apps on your Mac. Tap to add or remove."></ul>
+  </div>
+  <footer class="welcome__foot"><button id="welcome-done" class="button button--primary" type="button" disabled>Open my dock <span data-icon="arrow"></span></button></footer>
+</section>
+
 <main id="app" class="app" hidden>
   <header class="bar">
-    <div class="brand"><span data-icon="grid"></span>WinDock<span class="brand__dot"></span></div>
-    <span class="bar__divider"></span><span id="host-name" class="bar__host">Your PC</span>
+    <div class="brand"><span data-icon="grid"></span>MacDoc<span class="brand__dot"></span></div>
+    <span class="bar__divider"></span><span id="host-name" class="bar__host">Your Mac</span>
     <span id="conn" class="bar__state" data-state="off" role="status">Connecting</span>
     <button id="edit" class="button button--small" type="button" aria-label="Edit dock" aria-pressed="false"><span data-icon="edit"></span><span>Edit</span></button>
     <button id="settings-open" class="icon-button" type="button" aria-label="Open settings"><span data-icon="sliders"></span></button>
@@ -51,31 +79,51 @@
 <button id="drawer-open" class="drawer-trigger" type="button" aria-label="Open drawer" hidden><span></span></button>
 <button id="edit-done" class="edit-done icon-button" type="button" aria-label="Done editing" hidden><span data-icon="check"></span></button>
 
-<dialog id="drawer" class="glass-drawer" aria-label="WinDock drawer">
+<dialog id="drawer" class="glass-drawer" aria-label="MacDoc drawer">
   <button id="drawer-close" class="drawer-grip" type="button" aria-label="Close drawer"><span></span></button>
   <div class="drawer-actions">
     <button id="drawer-apps" type="button"><span data-icon="plus"></span><span>Apps</span></button>
     <button id="drawer-controls" type="button"><span data-icon="sliders"></span><span>Controls</span></button>
+    <button id="drawer-clipboard" type="button"><span data-icon="clipboard"></span><span>Clipboard</span></button>
     <button id="drawer-capture" type="button"><span data-icon="camera"></span><span>Capture</span></button>
     <button id="drawer-input" type="button"><span data-icon="touchpad"></span><span>Touch & sign</span></button>
     <button id="drawer-settings" type="button"><span data-icon="sun"></span><span>Appearance</span></button>
     <button id="drawer-edit" type="button"><span data-icon="edit"></span><span>Arrange</span></button>
     <button id="drawer-fullscreen" type="button"><span data-icon="monitor"></span><span>Fullscreen</span></button>
   </div>
-  <div class="drawer-connection"><span id="drawer-host">Your PC</span><span id="drawer-conn" data-state="off">Connecting</span></div>
+  <div class="drawer-connection"><span id="drawer-host">Your Mac</span><span id="drawer-stats" class="drawer-stats" hidden></span><span id="drawer-conn" data-state="off">Connecting</span></div>
 </dialog>
 
 <button id="recording-stop" class="recording-stop" type="button" aria-label="Stop screen recording" hidden><span class="recording-dot"></span><span id="recording-time">00:00</span><strong>Stop</strong></button>
 <dialog id="capture" class="sheet capture-sheet" aria-labelledby="capture-title">
   <div class="sheet-handle"></div>
-  <div class="sheet__heading"><div><h2 id="capture-title">Capture your screen</h2><p class="capture-subtitle">Main monitor · Saved on your PC</p></div><button class="icon-button" type="button" data-close="capture" aria-label="Close capture"><span data-icon="close"></span></button></div>
+  <div class="sheet__heading"><div><h2 id="capture-title">Capture your screen</h2><p class="capture-subtitle">Main monitor · Saved on your Mac</p></div><button class="icon-button" type="button" data-close="capture" aria-label="Close capture"><span data-icon="close"></span></button></div>
   <div class="capture-actions">
     <button id="capture-screenshot" type="button"><span data-icon="camera"></span><strong>Screenshot</strong><small>PNG · Full resolution</small></button>
     <button id="capture-record" type="button"><span id="capture-record-icon" data-icon="record"></span><strong id="capture-record-label">Start recording</strong><small id="capture-record-detail">MP4 · Video only</small></button>
   </div>
-  <p id="capture-status" class="capture-status" role="status">Screenshots → Pictures / WinDock. Recordings → Videos / WinDock.</p>
+  <p id="capture-status" class="capture-status" role="status">Screenshots → Pictures / MacDoc. Recordings → Videos / MacDoc.</p>
   <p id="capture-file" class="capture-file" hidden></p>
   <p class="capture-tip">Recordings stop after 60 minutes. You can also stop from the Windows tray.</p>
+</dialog>
+
+<dialog id="clipboard" class="sheet clipboard-sheet" aria-labelledby="clipboard-title">
+  <div class="sheet-handle"></div>
+  <div class="sheet__heading"><div><h2 id="clipboard-title">Clipboard</h2><p id="clipboard-status" class="capture-subtitle" role="status">Updates automatically while this is open.</p></div><button class="icon-button" type="button" data-close="clipboard" aria-label="Close clipboard"><span data-icon="close"></span></button></div>
+  <div class="clipboard__columns">
+    <section class="clipboard__card">
+      <h3 id="clipboard-host-title">On your Mac</h3>
+      <p id="clipboard-current" class="clipboard__current is-empty">Nothing copied yet.</p>
+      <button id="clipboard-copy" class="button" type="button" disabled><span data-icon="check"></span>Copy to this device</button>
+    </section>
+    <section class="clipboard__card">
+      <h3>From this device</h3>
+      <textarea id="clipboard-draft" class="clipboard__draft" rows="3" maxlength="20000" placeholder="Type or paste text to send" aria-label="Text to send"></textarea>
+      <div class="clipboard__actions"><button id="clipboard-paste" class="button" type="button"><span data-icon="clipboard"></span>Paste &amp; send</button><button id="clipboard-send" class="button" type="button"><span data-icon="arrow"></span>Send</button></div>
+    </section>
+  </div>
+  <div class="clipboard__history-heading"><h3>Recent</h3><button id="clipboard-clear" class="clipboard__clear" type="button" hidden>Clear</button></div>
+  <ul id="clipboard-history" class="clipboard__history" aria-label="Recent clipboard items. Tap one to copy it again."></ul>
 </dialog>
 
 <dialog id="input-pad" class="input-pad" data-mode="touchpad" aria-label="Touchpad and signature">
@@ -98,7 +146,7 @@
         <div id="pointer-options" class="pointer-options" hidden><label class="pointer-speed" for="pointer-speed">Pointer speed <output id="pointer-speed-value" for="pointer-speed">1.5×</output></label><input id="pointer-speed" type="range" min="0.5" max="3" step="0.25" value="1.5" aria-label="Pointer speed"><div class="pointer-speed-scale" aria-hidden="true"><span>Precise</span><span>Fast</span></div></div>
       </div>
     </div>
-    <div id="remote-keyboard" class="remote-keyboard" aria-label="Type on your PC" hidden>
+    <div id="remote-keyboard" class="remote-keyboard" aria-label="Type on your Mac" hidden>
       <button id="remote-keyboard-close" type="button" aria-label="Hide keyboard"><span data-icon="close"></span></button>
       <input id="remote-keyboard-text" type="text" placeholder="Type on PC…" aria-label="Text to type on PC" maxlength="1024" autocomplete="off" enterkeyhint="enter">
       <button id="remote-keyboard-backspace" type="button" aria-label="Backspace">⌫</button>
@@ -116,7 +164,7 @@
       <div class="signature-actions"><button id="signature-save" class="button" type="button" disabled>Save to PC</button><button id="signature-insert" class="button button--primary" type="button" disabled>Insert into PC</button></div>
     </div>
   </section>
-  <div class="input-pad__connection"><p id="input-status" class="input-pad__status" role="status">Connecting to your PC…</p><button id="input-reconnect" type="button" hidden>Reconnect</button></div>
+  <div class="input-pad__connection"><p id="input-status" class="input-pad__status" role="status">Connecting to your Mac…</p><button id="input-reconnect" type="button" hidden>Reconnect</button></div>
 </dialog>
 
 <dialog id="picker" class="sheet picker" aria-labelledby="picker-title">
@@ -140,6 +188,9 @@
         <button type="button" data-per-page="4" aria-pressed="true"><span class="mini-grid" style="--mini-columns:2"><i></i><i></i><i></i><i></i></span><span>4 icons</span></button>
         <button type="button" data-per-page="6" aria-pressed="false"><span class="mini-grid" style="--mini-columns:3"><i></i><i></i><i></i><i></i><i></i><i></i></span><span>6 icons</span></button>
         <button type="button" data-per-page="8" aria-pressed="false"><span class="mini-grid" style="--mini-columns:4"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>8 icons</span></button>
+        <button type="button" data-per-page="12" aria-pressed="false"><span class="mini-grid" style="--mini-columns:4"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>12 icons</span></button>
+        <button type="button" data-per-page="15" aria-pressed="false"><span class="mini-grid" style="--mini-columns:5"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>15 icons</span></button>
+        <button type="button" data-per-page="18" aria-pressed="false"><span class="mini-grid" style="--mini-columns:6"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>18 icons</span></button>
       </div>
       <label class="setting-row">Immersive mode<input id="immersive" class="switch" type="checkbox" role="switch" checked></label>
       <label class="setting-row">App names<input id="show-labels" class="switch" type="checkbox" role="switch"></label>

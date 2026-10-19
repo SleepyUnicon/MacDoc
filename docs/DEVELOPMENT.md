@@ -98,20 +98,20 @@ cryptographic document signing.
 
 `scripts/verify-input.mjs` tests protocol validation, authentication, origin,
 ownership, timeout/revocation cleanup, native-process handling and gestures.
-`dotnet run --project native/input-tests/WinDockInputTests.csproj -c Release`
+`dotnet run --project native/input-tests/MacDocInputTests.csproj -c Release`
 checks the native INPUT layout, button/modifier cleanup and PNG transparency/rendering
 without moving the desktop cursor. It is also part of Windows CI.
 
-The host prefers physical LAN adapters over VPN/VM adapters. Set `WINDOCK_HOST`
+The host prefers physical LAN adapters over VPN/VM adapters. Set `MACDOC_HOST`
 to choose another assigned local IPv4 address, `PORT` to change the port, or
-`WINDOCK_HELPER` to select another helper executable. `WINDOCK_CONFIG` overrides
+`MACDOC_HELPER` to select another helper executable. `MACDOC_CONFIG` overrides
 the configuration path; the normal tray uses the user's application-data folder.
 
 Brightness uses WMI for built-in panels and DDC/CI for supported HDMI/DisplayPort
 monitors, with a VCP luminance fallback. Percentages map to each display's range.
 DDC/CI may need enabling in the monitor's own menu.
 
-`WinDockHelper.exe brightness` reads support and current levels.
+`MacDocHelper.exe brightness` reads support and current levels.
 `node scripts/smoke-brightness.mjs` makes a five-point change and restores the
 original level in a `finally` block. Add `--base-url http://127.0.0.1:8620`
 to exercise the running host API. This hardware check is separate from `npm test`.
@@ -158,7 +158,7 @@ take integers from 0 to 100; their tiles are keyed by both verb and value.
 
 ## Windows update checks
 
-The tray checks `https://windock.vercel.app/downloads.json` once after startup
+The tray checks `https://macdoc.vercel.app/downloads.json` once after startup
 and on **Check for updates**. `native/tray/UpdateChecker.cs` compares semantic
 versions (including preview numbers) against the tray's informational version.
 Only this repository's tagged installer URL is accepted. The check has a
@@ -166,7 +166,7 @@ Only this repository's tagged installer URL is accepted. The check has a
 An available update shows a notification and a download menu item that opens
 the GitHub release page. The app never downloads or executes an installer itself.
 
-Run `dotnet run --project native/update-tests/WinDockUpdateTests.csproj -c Release`
+Run `dotnet run --project native/update-tests/MacDocUpdateTests.csproj -c Release`
 for version, HTTP, invalid-feed and notification-policy checks. Add `-- --live`
 after publishing 0.2.1-preview.1 to check the actual public feed for current and
 older installations. Update `package.json`, `package-lock.json`, and the tray

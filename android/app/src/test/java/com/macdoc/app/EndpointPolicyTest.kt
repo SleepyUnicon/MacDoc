@@ -1,4 +1,4 @@
-package com.windock.app
+package com.macdoc.app
 
 import org.junit.Assert.*
 import org.junit.Test
@@ -38,9 +38,9 @@ class EndpointPolicyTest {
     }
 
     @Test fun discoveryRejectsOtherProtocolsAndPublicHosts() {
-        assertEquals("http://192.168.1.40:8620", Discovery.parseReply("windock:here:v1:http://192.168.1.40:8620"))
-        listOf("garbage", "windock:here:v0:http://192.168.1.40:8620", "windock:here:v1:",
-            "windock:here:v1:https://example.com", "windock:here:v1:javascript:alert(1)").forEach {
+        assertEquals("http://192.168.1.40:8620", Discovery.parseReply("macdoc:here:v1:http://192.168.1.40:8620"))
+        listOf("garbage", "macdoc:here:v0:http://192.168.1.40:8620", "macdoc:here:v1:",
+            "macdoc:here:v1:https://example.com", "macdoc:here:v1:javascript:alert(1)").forEach {
             assertNull(Discovery.parseReply(it))
         }
     }

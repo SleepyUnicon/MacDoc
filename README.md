@@ -1,34 +1,57 @@
-# WinDock
+# MacDoc
 
-**Your Windows PC. Within reach.**
+**Your Mac. Within reach.**
 
-Turn an Android phone into a personal app dock for your Windows PC. Keep it
-beside your keyboard, tap to launch apps, control your music, and capture your
+Turn a spare Android tablet or phone into a personal app dock for your Mac (or
+Windows PC). Keep it beside your keyboard, tap to launch apps, control your music, and capture your
 screen — all over your local network, with no account or cloud service.
 
-[Website & interactive demo](https://windock.vercel.app) ·
-[Downloads](https://windock.vercel.app/#download) ·
-[Releases](https://github.com/aliihsaad/WinDock/releases) ·
+[Website & interactive demo](https://macdoc.vercel.app) ·
+[Downloads](https://macdoc.vercel.app/#download) ·
+[Releases](https://github.com/SleepyUnicon/MacDoc/releases) ·
 [Version history](CHANGELOG.md) ·
 [MIT license](LICENSE)
 
-![A Windows desktop with WinDock running on a landscape phone beside the keyboard.](website/assets/windock-desktop.png)
+![A Windows desktop with MacDoc running on a landscape phone beside the keyboard.](website/assets/macdoc-desktop.png)
 
-*WinDock at your desk — an AI-generated product illustration.*
+*MacDoc at your desk — an AI-generated product illustration.*
+
+## Run on a Mac
+
+MacDoc's host runs on macOS with Node.js 20+:
+
+```bash
+npm install
+npm start
+```
+
+It prints the address and a 4-digit PIN. Install the Android app on your tablet or
+phone, keep both on the same Wi-Fi, and connect with that PIN. You can also open
+the address in any browser on the network.
+
+On a Mac you get your apps with their real icons, volume and mute, Spotify/Music
+playback, lock and sleep, CPU/memory/battery stats in the drawer, and **Clipboard**:
+see what's on the Mac's clipboard, copy it to the tablet, send text back, and
+reuse recent items. The history stays in memory and clears when the host stops.
+macOS asks for Automation permission the first time MacDoc quits an app or
+controls a music player. Brightness, screen capture, the touchpad and the remote
+keyboard currently need the Windows host.
+
+Tablets get larger grids: choose 12, 15 or 18 icons per page in **Appearance**.
 
 ## Get started
 
 | Platform | Availability |
 | --- | --- |
-| Windows 10 / 11, x64 | [Download the installer](https://github.com/aliihsaad/WinDock/releases/download/v0.2.1-preview.1/WinDockSetup.exe) |
-| Android 7.0+ | [Download the APK](https://github.com/aliihsaad/WinDock/releases/download/v0.2.0-preview.1/WinDock-android-debug.apk) |
+| Windows 10 / 11, x64 | [Download the installer](https://github.com/SleepyUnicon/MacDoc/releases/download/v0.2.1-preview.1/MacDocSetup.exe) |
+| Android 7.0+ | [Download the APK](https://github.com/SleepyUnicon/MacDoc/releases/download/v0.2.0-preview.1/MacDoc-android-debug.apk) |
 | iOS | Coming soon — [native companion development & GitHub builds](ios/README.md); no installable public release yet. |
 
-1. **Install on your PC.** Open `WinDockSetup.exe`. It includes the required
-   runtimes and adds WinDock to your Start menu and system tray.
+1. **Install on your PC.** Open `MacDocSetup.exe`. It includes the required
+   runtimes and adds MacDoc to your Start menu and system tray.
 2. **Install on your phone.** Open the Android APK and allow installation from
    your browser or file manager when prompted.
-3. **Connect.** Keep both devices on the same trusted network. Open WinDock on
+3. **Connect.** Keep both devices on the same trusted network. Open MacDoc on
    your phone, select your PC, and enter the PIN from **Show connection info**
    in the Windows tray menu. Enter the tray address manually if discovery misses it.
 4. **Make it yours.** Turn the phone sideways, swipe up, and open **Apps** to
@@ -37,9 +60,9 @@ screen — all over your local network, with no account or cloud service.
 The Windows installer is currently unsigned and the Android APK is debug-signed.
 Windows may show a publisher warning. An APK signed with a different key can
 require uninstalling an earlier Android build before installing the new one.
-See the [release notes and checksums](https://github.com/aliihsaad/WinDock/releases/tag/v0.2.1-preview.1).
+See the [release notes and checksums](https://github.com/SleepyUnicon/MacDoc/releases/tag/v0.2.1-preview.1).
 
-**Updating:** quit WinDock from the Windows tray and run the latest installer;
+**Updating:** quit MacDoc from the Windows tray and run the latest installer;
 your dock settings are kept. Reconnect the phone app to load the updated dock.
 This release fixes automatic now-playing updates and needs **no new Android APK**.
 Starting with 0.2.1-preview.1, the Windows tray offers **Check for updates** and
@@ -58,7 +81,7 @@ installation remains manual. Older installations need one manual upgrade first.
 - **Control the essentials.** Adjust volume and supported display brightness,
   control media playback, or use Windows power actions.
 - **Capture your main monitor.** Save full-resolution PNG screenshots to
-  `Pictures\WinDock`, or silent MP4 recordings to `Videos\WinDock`. Recordings
+  `Pictures\MacDoc`, or silent MP4 recordings to `Videos\MacDoc`. Recordings
   fit within 1920×1080 at up to 15 fps and stop after 60 minutes. Stop from the
   phone or Windows tray. Audio and cursor overlays are not included.
 
@@ -91,7 +114,7 @@ finger or stylus. **Insert into PC** copies the image to the Windows clipboard a
 requests a paste in the active app. The app must accept pasted images; plain text
 fields cannot contain a signature image. **Save to PC** remains available.
 Black or blue ink is exported as a transparent 1600×600 PNG in
-`Pictures\WinDock\Signatures`. Open that folder from the Windows tray:
+`Pictures\MacDoc\Signatures`. Open that folder from the Windows tray:
 **Open saved files → Signatures**. Both saving and inserting keep a PNG here.
 If an app cannot paste it, use that app's image insertion command with the saved
 file. Undo and Clear stay on the phone.
@@ -100,7 +123,7 @@ These features are included in **0.2.0-preview.1**. Update both the Windows host
 and Android app (version code 3). Direct drawing inside PC apps is deferred.
 The PNG is a handwritten signature image, not a certificate-based digital signature.
 Touchpad control follows Windows permissions and cannot operate secure prompts
-or applications running with higher privileges than WinDock.
+or applications running with higher privileges than MacDoc.
 
 ## How it works
 
@@ -109,25 +132,25 @@ Android app discovers the PC and displays that interface in a landscape
 WebView. A Node.js host handles PIN pairing and live updates; a C# helper
 performs the Windows actions. You can also open the tray address in a browser.
 
-Your app actions and captures stay on your PC. WinDock is designed for a trusted
+Your app actions and captures stay on your PC. MacDoc is designed for a trusted
 home or office network, not internet remote access. Sessions reset when the PC
 host restarts. The website's interactive demo uses sample apps and simulated
 touchpad, typing, signature and capture actions; it never connects to your PC.
 
 ## Current release
 
-[0.2.1-preview.1](https://github.com/aliihsaad/WinDock/releases/tag/v0.2.1-preview.1)
+[0.2.1-preview.1](https://github.com/SleepyUnicon/MacDoc/releases/tag/v0.2.1-preview.1)
 fixes automatic now-playing updates and adds Windows update notifications. The
 Android APK remains at 0.2.0-preview.1 (version code 3). See the
 [version history](CHANGELOG.md) for changes and upgrade notes.
 
 The Windows installer and Android APK are built from this source.
-[GitHub Actions](https://github.com/aliihsaad/WinDock/actions/workflows/build-release.yml)
+[GitHub Actions](https://github.com/SleepyUnicon/MacDoc/actions/workflows/build-release.yml)
 checks Windows installation and Android builds. Published Android APKs use the
 local preview signing key; disposable CI debug APKs may use a different key.
 
 The initial [iPhone companion](ios/README.md) connects by PC address and reuses the
-same dock and PIN pairing. A separate [macOS build workflow](https://github.com/aliihsaad/WinDock/actions/workflows/build-ios.yml)
+same dock and PIN pairing. A separate [macOS build workflow](https://github.com/SleepyUnicon/MacDoc/actions/workflows/build-ios.yml)
 builds it and runs simulator tests. Its unsigned device archive needs signing before
 it can be installed on an iPhone; TestFlight and physical-device testing are pending.
 
@@ -159,7 +182,7 @@ npm start
 ```
 
 On Windows, `build:windows` prepares the helper used by `npm start` and creates
-`artifacts\WinDock-win-x64\WinDockTray.exe`, which can run on its own. The host
+`artifacts\MacDoc-win-x64\MacDocTray.exe`, which can run on its own. The host
 prints its address and pairing PIN. A Linux provider is included for development;
 Windows and Android are the downloadable app platforms.
 
@@ -168,7 +191,7 @@ Windows and Android are the downloadable app platforms.
 | `npm test` | Run the 16 platform-independent verification scripts |
 | `npm run build:windows` | Package the Windows helper, tray, Node host, and web UI |
 | `npm run test:windows` | Run native Windows smoke checks |
-| `npm run build:installer` | Create `artifacts/installer/WinDockSetup.exe` |
+| `npm run build:installer` | Create `artifacts/installer/MacDocSetup.exe` |
 | `npm run test:installer` | Check installation, launch, upgrade, and uninstall in isolation |
 | `npm run build:android` | Build, test, lint, and verify the Android APK |
 | `npm run website` | Serve the website locally at `http://127.0.0.1:4173` |
@@ -184,7 +207,7 @@ More detail: [developer reference](docs/DEVELOPMENT.md) ·
 
 ## Contributing
 
-[Open an issue](https://github.com/aliihsaad/WinDock/issues) with your Windows
+[Open an issue](https://github.com/SleepyUnicon/MacDoc/issues) with your Windows
 version, phone model, reproduction steps, and expected behavior. For changes,
 keep the platform-provider boundary intact and run `npm test`; native or Android
 changes also need the relevant platform checks. Never include pairing PINs,
@@ -192,6 +215,7 @@ session cookies, or your personal dock configuration in a report or commit.
 
 ## License
 
-WinDock's source code is available under the [MIT license](LICENSE).
+MacDoc's source code is available under the [MIT license](LICENSE).
 Copyright © 2026 [Ali Saad](https://github.com/aliihsaad).
+MacDoc is a fork of [WinDock](https://github.com/aliihsaad/WinDock) by Ali Saad.
 Third-party dependencies and app icons retain their own licenses and trademarks.

@@ -8,8 +8,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>WinDockHelper</AssemblyName>
-    <RootNamespace>WinDock</RootNamespace>
+    <AssemblyName>MacDocHelper</AssemblyName>
+    <RootNamespace>MacDoc</RootNamespace>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

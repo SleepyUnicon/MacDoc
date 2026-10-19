@@ -15,7 +15,7 @@ export function createInputPad({ api, notify, WebSocketClass = WebSocket, storag
   let color = "black", frame = null, pending = { move: [0, 0], scroll: [0, 0] }, speed = 1.5;
   let canInsertSignature = false;
   const keyboard = createRemoteKeyboard({ send: raw, isReady: () => ready && mode === "touchpad", onSignature: () => select("signature"), notify });
-  try { const saved = Number(storage.getItem("windock-pointer-speed")); if (saved >= .5 && saved <= 3) speed = saved; } catch { /* optional preference */ }
+  try { const saved = Number(storage.getItem("macdoc-pointer-speed")); if (saved >= .5 && saved <= 3) speed = saved; } catch { /* optional preference */ }
   $("pointer-speed").value = speed;
   $("pointer-speed-value").value = speed + "×";
   const setStatus = (text) => { $("input-status").textContent = text; };
@@ -97,7 +97,7 @@ export function createInputPad({ api, notify, WebSocketClass = WebSocket, storag
     const ticket = ++generation;
     disconnect(); mode = next; available = false; connecting = true; demo = false; paint();
     $("touchpad-surface").dataset.used = "false";
-    setStatus(next === "touchpad" ? "Connecting to your PC…" : "Draw here. Save a transparent PNG to Pictures / WinDock / Signatures.");
+    setStatus(next === "touchpad" ? "Connecting to your Mac…" : "Draw here. Save a transparent PNG to Pictures / MacDoc / Signatures.");
     try {
       const status = await api("/api/input");
       if (ticket !== generation || !dialog.open) return;
@@ -152,7 +152,7 @@ export function createInputPad({ api, notify, WebSocketClass = WebSocket, storag
     const value = Number(event.target.value);
     if (!Number.isFinite(value) || value < .5 || value > 3) return;
     speed = value; $("pointer-speed-value").value = speed + "×";
-    try { storage.setItem("windock-pointer-speed", String(speed)); } catch { /* optional preference */ }
+    try { storage.setItem("macdoc-pointer-speed", String(speed)); } catch { /* optional preference */ }
   });
   $("pointer-options-toggle").addEventListener("click", () => { if (dragging) release(); showOptions($("pointer-options").hidden); });
   dialog.addEventListener("cancel", (event) => { if (!$("pointer-options").hidden) { event.preventDefault(); showOptions(false); $("pointer-options-toggle").focus(); } });
@@ -204,7 +204,7 @@ export function createInputPad({ api, notify, WebSocketClass = WebSocket, storag
     try {
       const result = await api(insert ? "/api/signature/insert" : "/api/signature", { method: "POST", body: JSON.stringify({ strokes, color }) });
       setStatus(result.demo ? result.path : "Saved: " + result.path);
-      notify(result.demo ? "Demo only. No image saved or pasted." : insert ? (result.pasteRequested ? "Paste sent to the PC app · Signature also saved" : "Signature copied · Paste into your PC app") : "Signature saved to your PC as a transparent PNG.");
+      notify(result.demo ? "Demo only. No image saved or pasted." : insert ? (result.pasteRequested ? "Paste sent to the PC app · Signature also saved" : "Signature copied · Paste into your Mac app") : "Signature saved to your Mac as a transparent PNG.");
     } catch (error) { setStatus(error.message); }
     finally { saving = false; paint(); }
   }

@@ -1,5 +1,5 @@
 /**
- * WinDock service worker.
+ * MacDoc service worker.
  *
  * Purpose is installability and a fast, resilient shell — never stale control.
  *
@@ -9,7 +9,7 @@
  *    worse, replay a control action from cache. Neither is acceptable.
  */
 
-const VERSION = "macdoc-v1-0.2.1";
+const VERSION = "macdoc-v3-0.3.0";
 const SHELL = [
   "/",
   "/index.html",
@@ -23,6 +23,8 @@ const SHELL = [
   "/input-pad.js",
   "/touchpad-gestures.js",
   "/remote-keyboard.js",
+  "/clipboard.js",
+  "/welcome.js",
   "/manifest.webmanifest",
   "/icon-192.png",
   "/icon-512.png",

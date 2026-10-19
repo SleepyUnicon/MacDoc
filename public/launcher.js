@@ -1,16 +1,27 @@
 import { renderTile, renderTiles } from "./dock.js";
 import { tileKey, moveTile } from "./tiles.js";
 
+// Phones use the two-row grids; tablets have room for a third row.
+export const GRIDS = Object.freeze({
+  4: { columns: 2, rows: 2, iconSize: 160, scale: .44 },
+  6: { columns: 3, rows: 2, iconSize: 138, scale: .38 },
+  8: { columns: 4, rows: 2, iconSize: 116, scale: .32 },
+  12: { columns: 4, rows: 3, iconSize: 112, scale: .27 },
+  15: { columns: 5, rows: 3, iconSize: 100, scale: .24 },
+  18: { columns: 6, rows: 3, iconSize: 92, scale: .21 },
+});
+
 export function normalizeLayout(value = {}) {
-  // Upgrade earlier row/column preferences to one of the three supported grids.
+  // Upgrade earlier row/column preferences to one of the supported grids.
   const oldCapacity = Number(value?.columns) * Number(value?.rows);
-  const perPage = [4, 6, 8].includes(Number(value?.perPage)) ? Number(value.perPage)
+  const perPage = Object.hasOwn(GRIDS, Number(value?.perPage)) ? Number(value.perPage)
     : value?.perPage === undefined && [4, 6, 8].includes(oldCapacity) ? oldCapacity : 4;
+  const grid = GRIDS[perPage];
   return {
     perPage,
-    columns: perPage / 2,
-    rows: 2,
-    iconSize: { 4: 160, 6: 138, 8: 116 }[perPage],
+    columns: grid.columns,
+    rows: grid.rows,
+    iconSize: grid.iconSize,
     immersive: value?.immersive !== false,
     showLabels: value?.showLabels === true,
     background: ["aurora", "dusk", "ember", "midnight"].includes(value?.background) ? value.background : "aurora",

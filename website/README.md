@@ -1,4 +1,4 @@
-# WinDock website
+# MacDoc website
 
 A static landing page with a small public download-count endpoint. No framework, build dependency, tracking,
 external fonts, or connection to the user's live dock. Bundled app icons are
@@ -6,13 +6,13 @@ extracted from Windows; those product marks belong to their owners. The desk
 scene is an AI-generated product illustration, shared with the root README.
 
 The visual direction uses an ivory canvas, blue and sage accents, large type,
-a floating navigation bar, and numbered sections. The hero uses WinDock's own
+a floating navigation bar, and numbered sections. The hero uses MacDoc's own
 SVG mark inside a clear glass tile. Pointer movement shifts the tile by at most
 five pixels in each direction, without rotation; reduced-motion and touch devices keep it still. The
 interactive phone preview retains the actual application's dark interface.
 
 The navigation briefly introduces its links on desktop, then folds into a bright
-52-pixel WinDock logo button at the left edge of the page content in either theme.
+52-pixel MacDoc logo button at the left edge of the page content in either theme.
 Hover or keyboard focus expands it to the right;
 Escape closes it. Touch devices open a sliding curtain with section links,
 downloads, GitHub, and issue reporting. The menu contains keyboard focus, locks
@@ -21,7 +21,7 @@ Reduced motion skips the introduction and curtain animation.
 
 The navigation's theme controls change the website between ivory and charcoal.
 It follows the device's color scheme until a visitor chooses a theme, then remembers
-that choice in `windock-website-theme` local storage. `theme.js` applies it before
+that choice in `macdoc-website-theme` local storage. `theme.js` applies it before
 the stylesheet loads to avoid a bright flash. The phone demo keeps its own appearance.
 
 The desk illustration has two layers of scroll parallax: the rounded frame and
@@ -54,7 +54,7 @@ the phone. Run `npm run build:website-demo` after changing the shipping UI while
 the local website server is already running, then reload the website.
 The preview registers no service worker and its CSP blocks network connections.
 
-`package:downloads` requires `artifacts/installer/WinDockSetup.exe` and the
+`package:downloads` requires `artifacts/installer/MacDocSetup.exe` and the
 Android APK. Build the Windows runtime with `npm run build:windows`, then run
 `npm run build:installer` using Inno Setup 7. The installer bundles an allowlist
 of runtime files, excludes configuration/debug symbols/logs, and adds a Start
@@ -72,14 +72,14 @@ The Windows button downloads one setup EXE. Users do not extract an archive.
 The root `vercel.json` builds the preview and publishes `website/` as a
 static site plus `api/download-stats.js` as a Node.js function. `.vercelignore` excludes local toolchains, packaged applications,
 native/Android sources, and personal configuration from CLI uploads. Use the
-linked WinDock project and its default Vercel domain; no custom domain is needed.
+linked MacDoc project and its default Vercel domain; no custom domain is needed.
 The app host itself continues to run locally on Windows.
 
 The download section shows total, Windows, and Android downloads across public
 GitHub releases, including prereleases and repeat downloads. These are asset
 download counts, not unique users, installations, or active devices. The function
-reads the public GitHub API without credentials and counts only `WinDockSetup.exe`
-and `WinDock-android-debug.apk`, following release pagination. Vercel caches a
+reads the public GitHub API without credentials and counts only `MacDocSetup.exe`
+and `MacDoc-android-debug.apk`, following release pagination. Vercel caches a
 successful response for one hour, with up to one day of stale data while it
 revalidates. Failures show unavailable counts without affecting download links.
 The local preview server exposes the same endpoint. Other static hosts need an
@@ -92,12 +92,12 @@ immediately. Reduced motion shows the final values without animation, and hiding
 the page completes any running animation. Loading and unavailable counts remain
 dashes rather than displaying a misleading zero.
 
-Production: [windock.vercel.app](https://windock.vercel.app). The Vercel project
+Production: [macdoc.vercel.app](https://macdoc.vercel.app). The Vercel project
 is connected to this repository, so pushes to `main` deploy the website.
 
 `.github/workflows/build-release.yml` builds and tests Windows/Android on GitHub.
 Pushes to main produce build artifacts. Its manual **Create a draft GitHub
-release** option also produces `WinDockSetup.exe`, the APK, checksums, and a
+release** option also produces `MacDocSetup.exe`, the APK, checksums, and a
 manifest with direct tagged release links. It never publishes a draft or changes
 repository visibility. Publish tested installers as public GitHub Release
 assets, then commit the generated direct-download manifest to `website/downloads.json`.

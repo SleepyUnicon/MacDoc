@@ -1,4 +1,4 @@
-name: WinDock
+name: MacDoc
 options:
   minimumXcodeGenVersion: 2.42.0
   deploymentTarget:
@@ -11,32 +11,32 @@ settings:
     CURRENT_PROJECT_VERSION: '1'
     CODE_SIGN_STYLE: Automatic
 targets:
-  WinDock:
+  MacDoc:
     type: application
     platform: iOS
     sources: [Sources, Resources]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.ali-saad.windock
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ali-saad.macdoc
         INFOPLIST_FILE: Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
-  WinDockTests:
+  MacDocTests:
     type: bundle.unit-test
     platform: iOS
     sources: [Tests]
     dependencies:
-      - target: WinDock
+      - target: MacDoc
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.ali-saad.windock.tests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ali-saad.macdoc.tests
         GENERATE_INFOPLIST_FILE: YES
 schemes:
-  WinDock:
+  MacDoc:
     build:
       targets:
-        WinDock: all
+        MacDoc: all
     test:
       gatherCoverageData: true
-      targets: [WinDockTests]
+      targets: [MacDocTests]

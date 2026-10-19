@@ -1,4 +1,4 @@
-package com.windock.app
+package com.macdoc.app
 
 import android.view.inputmethod.EditorInfo
 import androidx.test.platform.app.InstrumentationRegistry

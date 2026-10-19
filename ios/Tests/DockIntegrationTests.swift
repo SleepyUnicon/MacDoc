@@ -1,7 +1,7 @@
 import XCTest
 import UIKit
 import WebKit
-@testable import WinDock
+@testable import MacDoc
 
 /// Hosted simulator tests against the real Node host with a fake Windows provider.
 /// No test hooks or native JavaScript bridges are shipped in the application.
@@ -12,8 +12,8 @@ final class DockIntegrationTests: XCTestCase {
     private let endpoint = "http://127.0.0.1:18622"
 
     override func setUp() async throws {
-        defaults = UserDefaults(suiteName: "WinDockSimulatorTests")!
-        defaults.removePersistentDomain(forName: "WinDockSimulatorTests")
+        defaults = UserDefaults(suiteName: "MacDocSimulatorTests")!
+        defaults.removePersistentDomain(forName: "MacDocSimulatorTests")
         let store = WKWebsiteDataStore.default()
         await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         installController(autoConnect: false)
@@ -21,7 +21,7 @@ final class DockIntegrationTests: XCTestCase {
 
     override func tearDown() async throws {
         controller.showConnection()
-        defaults.removePersistentDomain(forName: "WinDockSimulatorTests")
+        defaults.removePersistentDomain(forName: "MacDocSimulatorTests")
     }
 
     private func installController(autoConnect: Bool) {
@@ -41,7 +41,7 @@ final class DockIntegrationTests: XCTestCase {
             try await Task.sleep(nanoseconds: 100_000_000)
         }
         XCTFail("Timed out: \(description)")
-        throw NSError(domain: "WinDockTests", code: 1, userInfo: [NSLocalizedDescriptionKey: description])
+        throw NSError(domain: "MacDocTests", code: 1, userInfo: [NSLocalizedDescriptionKey: description])
     }
 
     private func js(_ script: String) async throws -> Any? {
@@ -68,7 +68,7 @@ final class DockIntegrationTests: XCTestCase {
                 web.takeSnapshot(with: config) { image, error in
                     if let error { continuation.resume(throwing: error) }
                     else if let image { continuation.resume(returning: image) }
-                    else { continuation.resume(throwing: NSError(domain: "WinDockSnapshot", code: 1)) }
+                    else { continuation.resume(throwing: NSError(domain: "MacDocSnapshot", code: 1)) }
                 }
             }
         } else {
@@ -117,7 +117,7 @@ final class DockIntegrationTests: XCTestCase {
         try await waitForJS("document.getElementById('conn').textContent === 'Connected'")
     }
 
-    func testInvalidUnreachableRedirectedAndNonWinDockHostsRecover() async throws {
+    func testInvalidUnreachableRedirectedAndNonMacDocHostsRecover() async throws {
         controller.address.text = "https://example.com"
         controller.connect()
         XCTAssertTrue(controller.status.text!.contains("local PC address"))
@@ -126,7 +126,7 @@ final class DockIntegrationTests: XCTestCase {
             controller.address.text = address
             controller.connect()
             try await waitUntil("Failure recovers for \(address)", seconds: 25) { [self] in controller.connectButton.isEnabled }
-            XCTAssertTrue(controller.status.text!.contains("Couldn’t reach WinDock"), address)
+            XCTAssertTrue(controller.status.text!.contains("Couldn’t reach MacDoc"), address)
             XCTAssertNil(controller.webView)
             XCTAssertNil(defaults.string(forKey: DockViewController.rememberedPCKey))
         }

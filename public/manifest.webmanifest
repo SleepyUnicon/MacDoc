@@ -1,6 +1,6 @@
 {
-  "name": "WinDock",
-  "short_name": "WinDock",
+  "name": "MacDoc",
+  "short_name": "MacDoc",
   "description": "Remote app dock and control surface for your PC.",
   "start_url": "/",
   "scope": "/",

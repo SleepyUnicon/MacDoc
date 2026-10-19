@@ -1,4 +1,4 @@
-package com.windock.app
+package com.macdoc.app
 
 import android.os.SystemClock
 import android.webkit.WebView

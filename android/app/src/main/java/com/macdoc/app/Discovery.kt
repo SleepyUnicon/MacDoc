@@ -1,8 +1,10 @@
-package com.windock.app
+package com.macdoc.app
 
 import java.net.DatagramPacket
 import java.net.DatagramSocket
+import java.net.Inet4Address
 import java.net.InetAddress
+import java.net.NetworkInterface
 import java.net.SocketTimeoutException
 
 /**
@@ -14,11 +16,30 @@ import java.net.SocketTimeoutException
  */
 object Discovery {
     const val PORT = 41234
-    const val PROBE = "windock:discover:v1"
-    const val REPLY_PREFIX = "windock:here:v1:"
+    const val PROBE = "macdoc:discover:v1"
+    const val REPLY_PREFIX = "macdoc:here:v1:"
 
     private const val TIMEOUT_MS = 1500
     private const val ATTEMPTS = 3
+
+    /**
+     * Each active IPv4 network's own broadcast address (for example
+     * 192.168.1.255), then the limited broadcast. Many access points and
+     * Android builds drop 255.255.255.255 but pass the subnet broadcast.
+     */
+    fun broadcastTargets(): List<InetAddress> {
+        val targets = mutableListOf<InetAddress>()
+        try {
+            for (nic in NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()) {
+                if (!nic.isUp || nic.isLoopback) continue
+                for (address in nic.interfaceAddresses) {
+                    if (address.address is Inet4Address) address.broadcast?.let(targets::add)
+                }
+            }
+        } catch (_: Exception) { /* fall back to the limited broadcast */ }
+        targets.add(InetAddress.getByName("255.255.255.255"))
+        return targets.distinct()
+    }
 
     /** Parse a reply datagram into an endpoint, or null if it is not ours. */
     fun parseReply(message: String): String? {
@@ -36,11 +57,13 @@ object Discovery {
             socket.broadcast = true
             socket.soTimeout = TIMEOUT_MS
             val payload = PROBE.toByteArray()
-            val broadcast = InetAddress.getByName("255.255.255.255")
+            val targets = broadcastTargets()
 
             repeat(ATTEMPTS) {
                 try {
-                    socket.send(DatagramPacket(payload, payload.size, broadcast, PORT))
+                    for (target in targets) {
+                        try { socket.send(DatagramPacket(payload, payload.size, target, PORT)) } catch (_: java.io.IOException) { /* try the next address */ }
+                    }
                     val buffer = ByteArray(256)
                     val packet = DatagramPacket(buffer, buffer.size)
                     socket.receive(packet)

@@ -22,9 +22,9 @@ t.equal(replyFor(` ${PROBE}\n`, ENDPOINT), `${REPLY_PREFIX}${ENDPOINT}`, "surrou
 const IGNORED = [
   ["", "empty datagram"],
   ["hello", "unrelated text"],
-  ["windock:discover:v0", "wrong protocol version"],
-  ["windock:discover", "truncated probe"],
-  ["WINDOCK:DISCOVER:V1", "wrong case"],
+  ["macdoc:discover:v0", "wrong protocol version"],
+  ["macdoc:discover", "truncated probe"],
+  ["MACDOC:DISCOVER:V1", "wrong case"],
   [`${PROBE}extra`, "probe with trailing junk"],
   ["x".repeat(MAX_PROBE_BYTES + 1), "oversized datagram"],
   [null, "null message"],

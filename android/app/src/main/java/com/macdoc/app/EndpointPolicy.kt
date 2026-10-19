@@ -1,4 +1,4 @@
-package com.windock.app
+package com.macdoc.app
 
 import java.net.URI
 
@@ -15,7 +15,7 @@ object EndpointPolicy {
             if (uri.rawUserInfo != null || uri.rawQuery != null || uri.rawFragment != null) return null
             if (!uri.rawPath.isNullOrEmpty() && uri.rawPath != "/") return null
             if (uri.port != -1 && uri.port !in 1..65535) return null
-            // Bare IPs use WinDock's port; full URLs keep their explicit/default port.
+            // Bare IPs use MacDoc's port; full URLs keep their explicit/default port.
             val port = if (uri.port == -1 && "://" !in input) 8620 else uri.port
             URI(scheme, null, host, port, null, null, null).toASCIIString()
         } catch (_: Exception) { null }

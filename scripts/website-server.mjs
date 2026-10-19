@@ -1,4 +1,4 @@
-// Read-only, loopback-only preview. Does not run the WinDock host or app actions.
+// Read-only, loopback-only preview. Does not run the MacDoc host or app actions.
 import { createServer } from 'node:http';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
@@ -9,7 +9,7 @@ await buildWebsiteDemo();
 const websiteRoot = resolve(import.meta.dirname, '../website');
 const downloadRoot = resolve(import.meta.dirname, '../artifacts/website-downloads');
 const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.exe': 'application/octet-stream', '.apk': 'application/vnd.android.package-archive', '.txt': 'text/plain; charset=utf-8' };
-const downloads = new Set(['WinDockSetup.exe', 'WinDock-android-debug.apk', 'SHA256SUMS.txt']);
+const downloads = new Set(['MacDocSetup.exe', 'MacDoc-android-debug.apk', 'SHA256SUMS.txt']);
 const server = createServer(async (req, res) => {
   if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405, { Allow: 'GET, HEAD' }); return res.end(); }
   try {
@@ -46,4 +46,4 @@ const server = createServer(async (req, res) => {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Not found');
   }
 });
-server.listen(4173, '127.0.0.1', () => console.log('WinDock website preview: http://127.0.0.1:4173'));
+server.listen(4173, '127.0.0.1', () => console.log('MacDoc website preview: http://127.0.0.1:4173'));

@@ -1,4 +1,4 @@
-package com.windock.app
+package com.macdoc.app
 
 import android.content.Context
 
@@ -11,7 +11,7 @@ import android.content.Context
  * pairing.
  */
 object ServerUrl {
-    private const val PREFS = "windock"
+    private const val PREFS = "macdoc"
     private const val KEY = "endpoint"
 
     fun isValid(url: String?): Boolean = EndpointPolicy.normalize(url) != null

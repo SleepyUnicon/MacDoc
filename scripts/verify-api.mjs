@@ -36,7 +36,7 @@ const provider = createWindowsProvider({
   },
 });
 
-const dir = await mkdtemp(join(tmpdir(), "windock-api-"));
+const dir = await mkdtemp(join(tmpdir(), "macdoc-api-"));
 const configStore = createConfigStore({ path: join(dir, "config.json") });
 // Loopback trust would short-circuit every auth check, since these requests
 // originate from 127.0.0.1. Disabling it makes the entire suite below exercise
@@ -79,7 +79,7 @@ t.equal(health.json.platform, "windows", "health names the active provider");
 // ---- static ----
 const index = await call("/");
 t.equal(index.status, 200, "GET / serves the PWA shell");
-t.ok(index.text.includes("<title>WinDock</title>"), "the shell carries the app title");
+t.ok(index.text.includes("<title>MacDoc</title>"), "the shell carries the app title");
 t.equal(index.headers.get("x-content-type-options"), "nosniff", "static responses set nosniff");
 const manifest = await call("/manifest.webmanifest");
 t.equal(manifest.status, 200, "the manifest is served");
@@ -97,7 +97,7 @@ t.equal(
 );
 const paired = await call("/api/auth", { method: "POST", body: { pin: PIN } });
 t.equal(paired.status, 200, "the correct pin pairs successfully");
-t.ok(cookie.startsWith("windock_session="), "pairing issues a session cookie");
+t.ok(cookie.startsWith("macdoc_session="), "pairing issues a session cookie");
 
 // ---- authenticated routes ----
 const state = await call("/api/state");
@@ -221,12 +221,12 @@ await badJson.arrayBuffer();
 // ---- unauthenticated access ----
 const saved = cookie;
 cookie = "";
-const anon = await fetch(`${base}/api/state`, { headers: { origin: base, cookie: "windock_session=bogus" } });
+const anon = await fetch(`${base}/api/state`, { headers: { origin: base, cookie: "macdoc_session=bogus" } });
 t.equal(anon.status, 401, "an invalid session cannot read state");
 await anon.arrayBuffer();
 const anonAction = await fetch(`${base}/api/control`, {
   method: "POST",
-  headers: { "content-type": "application/json", origin: base, cookie: "windock_session=bogus" },
+  headers: { "content-type": "application/json", origin: base, cookie: "macdoc_session=bogus" },
   body: JSON.stringify({ verb: "shutdown" }),
 });
 t.equal(anonAction.status, 401, "an invalid session cannot trigger a power action");

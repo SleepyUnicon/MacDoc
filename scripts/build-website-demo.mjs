@@ -15,7 +15,7 @@ export async function buildWebsiteDemo() {
   html = replaceOnce(html, '<link rel="manifest" href="/manifest.webmanifest">', '');
   html = replaceOnce(html, 'href="/style.css"', 'href="./style.css"');
   html = replaceOnce(html, 'src="/app.js"', 'src="./app.js"');
-  html = replaceOnce(html, '<title>WinDock</title>', '<title>WinDock interactive preview</title>');
+  html = replaceOnce(html, '<title>MacDoc</title>', '<title>MacDoc interactive preview</title>');
   html = replaceOnce(html, 'Main monitor · Saved on your PC', 'Demo · Nothing is captured or saved');
   html = replaceOnce(html, 'Recordings stop after 60 minutes. You can also stop from the Windows tray.', 'In the app, captures are saved to your PC.');
   html = replaceOnce(html, '<head>', `<head>
@@ -26,7 +26,7 @@ export async function buildWebsiteDemo() {
   }
   let dock = await readFile(resolve(root, 'public/dock.js'), 'utf8');
   dock = replaceOnce(dock,
-    'src="/api/apps/icon?v=3&amp;id=${escapeHtml(encodeURIComponent(app.id))}"',
+    'src="/api/apps/icon?v=4&amp;id=${escapeHtml(encodeURIComponent(app.id))}"',
     'src="../assets/${escapeHtml(encodeURIComponent(app.id))}.png"');
   await writeFile(resolve(destination, 'dock.js'), dock);
   let app = await readFile(resolve(root, 'public/app.js'), 'utf8');
@@ -35,41 +35,41 @@ export async function buildWebsiteDemo() {
   app = replaceOnce(app, 'if ("serviceWorker" in navigator) {', 'if (false) { // Service workers are disabled in the website preview.');
   for (const [from, to] of [
     ['Recording started · Tap Stop to save', 'Demo recording started · Tap Stop to finish'],
-    ['Screenshot saved in Pictures / WinDock', 'Screenshot preview · No file created'],
-    ['Recording saved in Videos / WinDock', 'Recording preview finished · No file created'],
+    ['Screenshot saved in Pictures / MacDoc', 'Screenshot preview · No file created'],
+    ['Recording saved in Videos / MacDoc', 'Recording preview finished · No file created'],
     ['Recording your main monitor. Stop to save the video.', 'Demo timer running. Nothing is being recorded.'],
-    ['Screenshots → Pictures / WinDock. Recordings → Videos / WinDock.', 'Try a screenshot or a recording. No files are created in this demo.'],
+    ['Screenshots → Pictures / MacDoc. Recordings → Videos / MacDoc.', 'Try a screenshot or a recording. No files are created in this demo.'],
     ['Last saved: ', 'Preview result: '],
   ]) app = replaceOnce(app, from, to);
   app += `
 // Small parent bridge; every setting still uses the real app's saveLayout.
 window.addEventListener('message', (event) => {
   if (event.source !== parent || event.origin !== location.origin) return;
-  if (event.data?.type === 'windock-preview-input' && paired && ['touchpad', 'signature'].includes(event.data.mode)) {
+  if (event.data?.type === 'macdoc-preview-input' && paired && ['touchpad', 'signature'].includes(event.data.mode)) {
     // Keep this dialog open while switching modes: its queued close event
     // would otherwise disconnect the newly opened demo touchpad.
     for (const dialog of document.querySelectorAll('dialog[open]')) if (dialog.id !== 'input-pad') dialog.close();
     inputPad.open(event.data.mode);
-    parent.postMessage({ type: 'windock-preview-opened' }, location.origin);
+    parent.postMessage({ type: 'macdoc-preview-opened' }, location.origin);
   }
-  if (event.data?.type === 'windock-preview-density' && [4, 6, 8].includes(event.data.perPage)) saveLayout({ perPage: event.data.perPage });
-  if (event.data?.type === 'windock-preview-drawer' && paired) {
+  if (event.data?.type === 'macdoc-preview-density' && [4, 6, 8].includes(event.data.perPage)) saveLayout({ perPage: event.data.perPage });
+  if (event.data?.type === 'macdoc-preview-drawer' && paired) {
     for (const dialog of document.querySelectorAll('dialog[open]')) if (dialog.id !== 'drawer') dialog.close();
     openDrawer();
-    parent.postMessage({ type: 'windock-preview-opened' }, location.origin);
+    parent.postMessage({ type: 'macdoc-preview-opened' }, location.origin);
   }
-  if (event.data?.type === 'windock-preview-capture' && paired) {
+  if (event.data?.type === 'macdoc-preview-capture' && paired) {
     for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
     openCapture();
-    parent.postMessage({ type: 'windock-preview-opened' }, location.origin);
+    parent.postMessage({ type: 'macdoc-preview-opened' }, location.origin);
   }
 });
-parent.postMessage({ type: 'windock-preview-layout', perPage: layout.perPage }, location.origin);
+parent.postMessage({ type: 'macdoc-preview-layout', perPage: layout.perPage }, location.origin);
 `;
   await writeFile(resolve(destination, 'app.js'), app);
   await writeFile(resolve(destination, 'verbs.js'), `export default ${JSON.stringify(CONTROL_VERBS)};\n`);
 }
 if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) {
   await buildWebsiteDemo();
-  console.log('Website preview generated from the current WinDock UI.');
+  console.log('Website preview generated from the current MacDoc UI.');
 }

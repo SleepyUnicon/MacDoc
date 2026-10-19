@@ -1,4 +1,4 @@
-# WinDock Android test app
+# MacDoc Android test app
 
 The Android app displays the PC's existing dock in a fullscreen landscape
 WebView. Keep the Windows tray running; this app needs a connection to the PC.
@@ -12,7 +12,7 @@ override them. Java 21, Gradle 8.9 and the included SDK 34 setup were verified.
 The wrapper can also be run directly with `bash android/gradlew -p android
 assembleDebug` on Linux with those prerequisites.
 
-Output: `artifacts/WinDock-android-debug.apk`. It supports Android 7/API 24 and
+Output: `artifacts/MacDoc-android-debug.apk`. It supports Android 7/API 24 and
 newer, targets API 34, and uses a local debug signing key. Updating requires the
 same signing key. Production signing and Play Store preparation are separate.
 
@@ -20,7 +20,7 @@ Transfer the APK to the phone, open it and allow installation from the chosen
 browser/file manager if Android asks. Alternatively, enable USB debugging,
 approve the PC on the phone, then use the SDK's `adb install -r` with the APK.
 
-Open WinDock, use the same LAN as the PC, and enter the PIN from the PC tray.
+Open MacDoc, use the same LAN as the PC, and enter the PIN from the PC tray.
 If discovery misses the PC, enter its full tray URL or IPv4 address/port and tap
 Connect. A bare IP defaults to port 8620. Back closes an open sheet; a second
 Back returns to the connection screen. Android's first fullscreen prompt needs
@@ -45,7 +45,7 @@ cd android
 .\gradlew.bat assembleDebug assembleDebugAndroidTest
 adb install -r app\build\outputs\apk\debug\app-debug.apk
 adb install -r app\build\outputs\apk\androidTest\debug\app-debug-androidTest.apk
-adb shell am instrument -w -e class com.windock.app.DockSmokeTest com.windock.app.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -e class com.macdoc.app.DockSmokeTest com.macdoc.app.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 Expected: `OK (1 test)`. The test targets the emulator's host alias
@@ -69,7 +69,7 @@ test so its background polling count is isolated. After building/installing the
 debug and instrumentation APKs as above, run:
 
 ```powershell
-adb shell am instrument -w -e class com.windock.app.NowPlayingSmokeTest com.windock.app.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -e class com.macdoc.app.NowPlayingSmokeTest com.macdoc.app.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 Expected: `OK (1 test)`. The test changes the host's simulated track, artist,
@@ -89,7 +89,7 @@ poller's automatic-update, inactive-state, timeout and concurrency regression.
 Android's network security XML matches domains, not private IP subnets. The
 transport allows HTTP, while `EndpointPolicy` limits selected hosts to private
 or loopback IPv4 addresses (plus localhost). Health checks reject redirects,
-limit response size/time and require WinDock's identity. The WebView permits
+limit response size/time and require MacDoc's identity. The WebView permits
 only the selected origin, disables file/content access, and never overrides
 TLS certificate errors. PIN/session handling stays in the shared web UI.
 This is LAN HTTP, not encrypted transport. Android HTTP does not enable the

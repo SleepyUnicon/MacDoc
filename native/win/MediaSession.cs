@@ -6,7 +6,7 @@
 
 using Windows.Media.Control;
 
-namespace WinDock;
+namespace MacDoc;
 
 internal static class MediaSession
 {

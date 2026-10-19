@@ -1,4 +1,4 @@
-package com.windock.app
+package com.macdoc.app
 
 import android.view.View
 import android.view.ViewGroup
@@ -19,7 +19,7 @@ import kotlin.concurrent.thread
 class RemoteKeyboardBridgeTest {
     @Test fun opensNativeImeAndReturnsEmojiToTrustedPage() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val prefs = context.getSharedPreferences("windock", android.content.Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("macdoc", android.content.Context.MODE_PRIVATE)
         val remembered = prefs.getString("endpoint", null)
         val server = ServerSocket(0)
         val endpoint = "http://127.0.0.1:" + server.localPort
@@ -31,9 +31,9 @@ class RemoteKeyboardBridgeTest {
                         val request = reader.readLine().orEmpty()
                         while (!reader.readLine().isNullOrEmpty()) { }
                         val health = request.startsWith("GET /health ")
-                        val body = if (health) """{"app":"windock"}""" else
+                        val body = if (health) """{"app":"macdoc"}""" else
                             """<html><body>ready<script>
-                            window.addEventListener('windock-keyboard-input',e=>{document.body.textContent=JSON.stringify(e.detail)});
+                            window.addEventListener('macdoc-keyboard-input',e=>{document.body.textContent=JSON.stringify(e.detail)});
                             </script></body></html>"""
                         val bytes = body.toByteArray()
                         client.getOutputStream().apply {
@@ -84,7 +84,7 @@ class RemoteKeyboardBridgeTest {
                     fail("Timed out waiting for native keyboard state: " + state + "; " + focus)
                 }
                 awaitState { it.hasWindowFocus() && it.findViewById<WebView>(R.id.web).visibility == View.VISIBLE }
-                scenario.onActivity { it.findViewById<WebView>(R.id.web).evaluateJavascript("WinDockAndroid.showKeyboard('42',false)", null) }
+                scenario.onActivity { it.findViewById<WebView>(R.id.web).evaluateJavascript("MacDocAndroid.showKeyboard('42',false)", null) }
                 awaitState {
                     val root = it.findViewById<View>(R.id.root)
                     editor(root)?.hasFocus() == true &&
@@ -100,7 +100,7 @@ class RemoteKeyboardBridgeTest {
                 assertTrue(delivered.await(5, TimeUnit.SECONDS))
                 assertTrue(reply.contains("Hi"))
                 assertTrue(reply.contains("42"))
-                scenario.onActivity { it.findViewById<WebView>(R.id.web).evaluateJavascript("WinDockAndroid.hideKeyboard()", null) }
+                scenario.onActivity { it.findViewById<WebView>(R.id.web).evaluateJavascript("MacDocAndroid.hideKeyboard()", null) }
                 awaitState { editor(it.findViewById(R.id.root))?.isShown == false }
             }
         } finally {

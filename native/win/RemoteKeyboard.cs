@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Automation;
 
-namespace WinDock;
+namespace MacDoc;
 
 /** Unicode packets preserve emoji/surrogate pairs without a PC keyboard-layout mapping. */
 internal sealed class RemoteKeyboard(Func<Touchpad.Input[], uint> send, Func<int> lastError)
@@ -60,7 +60,7 @@ internal sealed class KeyboardFocus(Action<object> emit) : IDisposable
     internal static bool ModifierDown() => new[] { 0x10, 0x11, 0x12, 0x5B, 0x5C }.Any(key => (GetAsyncKeyState(key) & 0x8000) != 0);
     internal void Start()
     {
-        thread = new Thread(Watch) { IsBackground = true, Name = "WinDock text focus" };
+        thread = new Thread(Watch) { IsBackground = true, Name = "MacDoc text focus" };
         thread.SetApartmentState(ApartmentState.MTA);
         thread.Start();
     }

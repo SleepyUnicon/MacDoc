@@ -10,12 +10,12 @@ import { primaryAddress } from "../src/discovery.js";
 
 assert.equal(process.platform, "win32", "run this hardware check on Windows");
 const root = resolve(import.meta.dirname, "..");
-const packageDir = join(root, "artifacts", "WinDock-win-x64");
-const helperPath = join(packageDir, "WinDockHelper.exe");
-const fixturePath = join(root, "artifacts", "probe", "WinDockProbe.exe");
+const packageDir = join(root, "artifacts", "MacDoc-win-x64");
+const helperPath = join(packageDir, "MacDocHelper.exe");
+const fixturePath = join(root, "artifacts", "probe", "MacDocProbe.exe");
 const exec = createExec();
 const provider = createWindowsProvider({ exec, helperPath });
-const temp = await mkdtemp(join(tmpdir(), "windock-native-"));
+const temp = await mkdtemp(join(tmpdir(), "macdoc-native-"));
 const signal = join(temp, "probe.json");
 let probe;
 async function waitForFile(path) {
@@ -53,9 +53,9 @@ try {
   await provider.nowPlaying();
   console.log("PASS now-playing command (an active media session is optional)");
 
-  const result = await promisify(execFile)(join(packageDir, "WinDockTray.exe"), ["--smoke-test"], {
+  const result = await promisify(execFile)(join(packageDir, "MacDocTray.exe"), ["--smoke-test"], {
     cwd: temp, windowsHide: true, timeout: 30000,
-    env: { ...process.env, PORT: "18620", WINDOCK_CONFIG: join(temp, "config.json") },
+    env: { ...process.env, PORT: "18620", MACDOC_CONFIG: join(temp, "config.json") },
   });
   assert.match(result.stdout, /TRAY OK/);
   console.log("PASS packaged tray starts bundled Node from a different working directory and stops its server");

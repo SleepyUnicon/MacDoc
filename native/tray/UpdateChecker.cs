@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace WinDock.Tray;
+namespace MacDoc.Tray;
 
 internal sealed record ReleaseVersion(int Major, int Minor, int Patch, string[] Preview, string Text) : IComparable<ReleaseVersion>
 {
@@ -50,8 +50,8 @@ internal sealed record UpdateResult(UpdateStatus Status, string? Version = null,
 
 internal sealed class UpdateChecker(HttpClient http, string installedVersion)
 {
-    internal const string ManifestUrl = "https://windock.vercel.app/downloads.json";
-    internal const string ReleasesUrl = "https://github.com/aliihsaad/WinDock/releases";
+    internal const string ManifestUrl = "https://macdoc.vercel.app/downloads.json";
+    internal const string ReleasesUrl = "https://github.com/SleepyUnicon/MacDoc/releases";
     internal static string InstalledVersion => (typeof(UpdateChecker).Assembly
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
         ?? "0.2.1-preview.1").Split('+')[0];
@@ -61,7 +61,7 @@ internal sealed class UpdateChecker(HttpClient http, string installedVersion)
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, ManifestUrl);
-            request.Headers.UserAgent.ParseAdd("WinDock/" + installedVersion);
+            request.Headers.UserAgent.ParseAdd("MacDoc/" + installedVersion);
             request.Headers.CacheControl = new() { NoCache = true };
             using var response = await http.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
@@ -87,7 +87,7 @@ internal sealed class UpdateChecker(HttpClient http, string installedVersion)
         var latest = ReleaseVersion.Parse(version.GetString()!);
         // The feed can only announce this repository's tagged Windows installer.
         var releasePage = ReleasesUrl + "/tag/v" + latest.Text;
-        if (url.GetString() != ReleasesUrl + "/download/v" + latest.Text + "/WinDockSetup.exe")
+        if (url.GetString() != ReleasesUrl + "/download/v" + latest.Text + "/MacDocSetup.exe")
             throw new InvalidDataException("Unexpected download location.");
         return latest.CompareTo(ReleaseVersion.Parse(installedVersion)) > 0
             ? new(UpdateStatus.Available, latest.Text, new Uri(releasePage))

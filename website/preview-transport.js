@@ -8,12 +8,12 @@ const apps = [
   ['chatgpt', 'ChatGPT'], ['edge', 'Microsoft Edge'], ['notepad', 'Notepad'],
 ].map(([id, name]) => ({ id, name, target: `preview:${id}`, args: '', icon: '' }));
 let tiles = apps.map(app => ({ ...app, kind: 'app', label: app.name }));
-const values = new Map([['windock-layout', JSON.stringify({ perPage: 6 })]]);
+const values = new Map([['macdoc-layout', JSON.stringify({ perPage: 6 })]]);
 let recordingStartedAt = null, lastCapture = null;
 let typedText = '';
-const showTyping = () => parent.postMessage({ type: 'windock-preview-typed', text: typedText }, location.origin);
+const showTyping = () => parent.postMessage({ type: 'macdoc-preview-typed', text: typedText }, location.origin);
 window.addEventListener('message', event => {
-  if (event.source === parent && event.origin === location.origin && event.data?.type === 'windock-preview-clear-text') { typedText = ''; showTyping(); }
+  if (event.source === parent && event.origin === location.origin && event.data?.type === 'macdoc-preview-clear-text') { typedText = ''; showTyping(); }
 });
 
 function finishRecording() {
@@ -30,9 +30,9 @@ export const localStorage = {
   getItem: key => values.get(key) ?? null,
   setItem(key, value) {
     values.set(key, value);
-    if (key === 'windock-layout') {
+    if (key === 'macdoc-layout') {
       const layout = JSON.parse(value);
-      parent.postMessage({ type: 'windock-preview-layout', perPage: layout.perPage }, location.origin);
+      parent.postMessage({ type: 'macdoc-preview-layout', perPage: layout.perPage }, location.origin);
     }
   },
 };

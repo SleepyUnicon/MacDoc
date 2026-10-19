@@ -12,7 +12,7 @@ import { controlArgv, unmappedVerbs, createWindowsProvider, HELPER_CONTROL } fro
 import { createLinuxProvider, LINUX_CONTROL } from "../src/platform/linux.js";
 
 const t = createChecker("control");
-const HELPER = "WinDockHelper.exe";
+const HELPER = "MacDocHelper.exe";
 
 // Completeness: no declared verb may be silently unimplemented on either OS.
 t.deepEqual(unmappedVerbs(), [], "every contract verb is mapped on Windows");

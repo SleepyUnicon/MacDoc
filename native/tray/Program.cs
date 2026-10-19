@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Net.Http;
 
-namespace WinDock.Tray;
+namespace MacDoc.Tray;
 
 internal static class Program
 {
@@ -13,11 +13,11 @@ internal static class Program
     {
         ApplicationConfiguration.Initialize();
         var smoke = args.Contains("--smoke-test");
-        using var instance = new Mutex(true, smoke ? null : @"Local\WinDock.Tray", out var firstInstance);
+        using var instance = new Mutex(true, smoke ? null : @"Local\MacDoc.Tray", out var firstInstance);
         if (!firstInstance)
         {
-            MessageBox.Show("WinDock is already running. Find its icon in the Windows system tray.",
-                "WinDock", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("MacDoc is already running. Find its icon in the Windows system tray.",
+                "MacDoc", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return 0;
         }
         using var app = new TrayApp(smoke);
@@ -64,7 +64,7 @@ internal sealed partial class TrayApp : ApplicationContext
         {
             Icon = _trayImage,
             Visible = !smoke,
-            Text = "WinDock",
+            Text = "MacDoc",
             ContextMenuStrip = new ContextMenuStrip(),
         };
         _icon.ContextMenuStrip.Items.Add("Show connection info", null, (_, _) => ShowInfo());
@@ -82,7 +82,7 @@ internal sealed partial class TrayApp : ApplicationContext
         _downloadUpdate = new ToolStripMenuItem("Download update…", null, (_, _) => OpenRelease(_availableUpdate?.ReleasePage)) { Visible = false };
         _icon.ContextMenuStrip.Items.Add(_checkUpdates);
         _icon.ContextMenuStrip.Items.Add(_downloadUpdate);
-        _icon.ContextMenuStrip.Items.Add("Quit WinDock", null, async (_, _) => { if (await StopRecording()) ExitThread(); });
+        _icon.ContextMenuStrip.Items.Add("Quit MacDoc", null, async (_, _) => { if (await StopRecording()) ExitThread(); });
         _icon.DoubleClick += (_, _) => ShowInfo();
         _icon.BalloonTipClicked += (_, _) => { if (_balloonRelease is { } page) OpenRelease(page); };
         _updateTimer.Tick += async (_, _) => { _updateTimer.Stop(); await CheckUpdates(false); };
@@ -112,8 +112,8 @@ internal sealed partial class TrayApp : ApplicationContext
 
     private static Icon LoadTrayIcon()
     {
-        using var stream = typeof(TrayApp).Assembly.GetManifestResourceStream("WinDock.Tray.WinDock.ico")
-            ?? throw new InvalidOperationException("The WinDock tray icon is missing.");
+        using var stream = typeof(TrayApp).Assembly.GetManifestResourceStream("MacDoc.Tray.MacDoc.ico")
+            ?? throw new InvalidOperationException("The MacDoc tray icon is missing.");
         using var source = new Icon(stream, SystemInformation.SmallIconSize);
         return (Icon)source.Clone();
     }
@@ -157,8 +157,8 @@ internal sealed partial class TrayApp : ApplicationContext
     {
         Environment.ExitCode = 1;
         if (_smoke) Console.Error.WriteLine($"TRAY FAILED: {message}");
-        else MessageBox.Show($"WinDock could not run its server.\n\n{message}",
-            "WinDock", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        else MessageBox.Show($"MacDoc could not run its server.\n\n{message}",
+            "MacDoc", MessageBoxButtons.OK, MessageBoxIcon.Error);
         ExitThread();
     }
 
@@ -170,17 +170,17 @@ internal sealed partial class TrayApp : ApplicationContext
         var pin = PinLine().Match(line);
         if (!pin.Success) return;
         _pin = pin.Groups[1].Value;
-        _icon.Text = "WinDock — running";
+        _icon.Text = "MacDoc — running";
         if (!_smoke)
         {
-            ShowBalloon("WinDock is running", $"{_endpoint}\nPIN {_pin}");
+            ShowBalloon("MacDoc is running", $"{_endpoint}\nPIN {_pin}");
             if (!_startupCheckScheduled) { _startupCheckScheduled = true; _updateTimer.Start(); }
         }
     }
 
     private void ShowInfo() => MessageBox.Show(
-        $"WinDock {UpdateChecker.InstalledVersion}\n\nOpen this address on your phone:\n\n{_endpoint}\n\nPairing PIN: {_pin}\n\nBoth devices must be on the same network.",
-        "WinDock", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        $"MacDoc {UpdateChecker.InstalledVersion}\n\nOpen this address on your phone:\n\n{_endpoint}\n\nPairing PIN: {_pin}\n\nBoth devices must be on the same network.",
+        "MacDoc", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
     private void ShowBalloon(string title, string text, Uri? release = null)
     {
@@ -203,19 +203,19 @@ internal sealed partial class TrayApp : ApplicationContext
             {
                 _availableUpdate = result.Status == UpdateStatus.Available ? result : null;
                 _downloadUpdate.Visible = _availableUpdate is not null;
-                _downloadUpdate.Text = "Download WinDock " + result.Version + "…";
+                _downloadUpdate.Text = "Download MacDoc " + result.Version + "…";
             }
             if (!result.ShouldNotify(interactive)) return;
             if (result.Status == UpdateStatus.Available)
             {
-                if (!interactive) ShowBalloon("WinDock update available", $"Version {result.Version} is ready. Click to view the release and download it.", result.ReleasePage);
-                else if (MessageBox.Show($"WinDock {result.Version} is available.\nYou have {UpdateChecker.InstalledVersion}.\n\nOpen the release page? Download the installer, quit WinDock, then run it. Your dock settings are kept.",
-                    "WinDock update", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes) OpenRelease(result.ReleasePage);
+                if (!interactive) ShowBalloon("MacDoc update available", $"Version {result.Version} is ready. Click to view the release and download it.", result.ReleasePage);
+                else if (MessageBox.Show($"MacDoc {result.Version} is available.\nYou have {UpdateChecker.InstalledVersion}.\n\nOpen the release page? Download the installer, quit MacDoc, then run it. Your dock settings are kept.",
+                    "MacDoc update", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes) OpenRelease(result.ReleasePage);
             }
             else MessageBox.Show(result.Status == UpdateStatus.Current
                 ? $"You’re up to date.\nInstalled version: {UpdateChecker.InstalledVersion}"
-                : "Couldn’t check for updates. Check your internet connection and try again. You can also find releases at github.com/aliihsaad/WinDock/releases.",
-                "WinDock updates", MessageBoxButtons.OK, result.Status == UpdateStatus.Current ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+                : "Couldn’t check for updates. Check your internet connection and try again. You can also find releases at github.com/SleepyUnicon/MacDoc/releases.",
+                "MacDoc updates", MessageBoxButtons.OK, result.Status == UpdateStatus.Current ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
         }
         finally
         {
@@ -228,7 +228,7 @@ internal sealed partial class TrayApp : ApplicationContext
     {
         if (page is null) return;
         try { Process.Start(new ProcessStartInfo(page.AbsoluteUri) { UseShellExecute = true }); }
-        catch (Exception ex) { MessageBox.Show($"Couldn’t open your browser. Visit {page}\n\n{ex.Message}", "WinDock updates", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        catch (Exception ex) { MessageBox.Show($"Couldn’t open your browser. Visit {page}\n\n{ex.Message}", "MacDoc updates", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }
 
     private void CopyUrl()
@@ -251,8 +251,8 @@ internal sealed partial class TrayApp : ApplicationContext
             var phase = document.RootElement.GetProperty("phase").GetString();
             var active = phase is "starting" or "recording" or "stopping";
             _stopRecording.Enabled = active && phase != "stopping";
-            _icon.Text = active ? "WinDock — screen recording" : "WinDock — running";
-            if (active && !_recording) ShowBalloon("Screen recording started", "Your main monitor is being recorded without audio. Right-click WinDock to stop.");
+            _icon.Text = active ? "MacDoc — screen recording" : "MacDoc — running";
+            if (active && !_recording) ShowBalloon("Screen recording started", "Your main monitor is being recorded without audio. Right-click MacDoc to stop.");
             _recording = active;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException) { }
@@ -270,7 +270,7 @@ internal sealed partial class TrayApp : ApplicationContext
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            MessageBox.Show("Could not save the recording. Check the connection and try stopping again before quitting.", "WinDock", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show("Could not save the recording. Check the connection and try stopping again before quitting.", "MacDoc", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return false;
         }
     }
@@ -278,9 +278,9 @@ internal sealed partial class TrayApp : ApplicationContext
     {
         var root = Environment.GetFolderPath(video ? Environment.SpecialFolder.MyVideos : Environment.SpecialFolder.MyPictures);
         if (string.IsNullOrEmpty(root)) root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), video ? "Videos" : "Pictures");
-        var folder = signature ? Path.Combine(root, "WinDock", "Signatures") : Path.Combine(root, "WinDock");
+        var folder = signature ? Path.Combine(root, "MacDoc", "Signatures") : Path.Combine(root, "MacDoc");
         try { Directory.CreateDirectory(folder); Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true }); }
-        catch (Exception ex) { MessageBox.Show(ex.Message, "WinDock captures", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "MacDoc captures", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }
 
     protected override void Dispose(bool disposing)

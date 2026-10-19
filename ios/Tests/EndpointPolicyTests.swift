@@ -1,5 +1,5 @@
 import XCTest
-@testable import WinDock
+@testable import MacDoc
 
 final class EndpointPolicyTests: XCTestCase {
     func testLocalAddressesAndDefaultPorts() {
@@ -41,11 +41,11 @@ final class EndpointPolicyTests: XCTestCase {
         XCTAssertFalse(EndpointPolicy.allows(nil, endpoint: endpoint))
     }
 
-    func testHealthRequiresBoundedWinDockMarker() {
-        XCTAssertTrue(HealthProbe.isWinDock(Data(#"{"ok":true,"app":"windock"}"#.utf8)))
-        for input in [#"{"ok":true,"app":"other"}"#, #"{"app":"windock"}"#, #"{"ok":false,"app":"windock"}"#,
-                      #"[{"ok":true,"app":"windock"}]"#, "not json", String(repeating: " ", count: 4097)] {
-            XCTAssertFalse(HealthProbe.isWinDock(Data(input.utf8)))
+    func testHealthRequiresBoundedMacDocMarker() {
+        XCTAssertTrue(HealthProbe.isMacDoc(Data(#"{"ok":true,"app":"macdoc"}"#.utf8)))
+        for input in [#"{"ok":true,"app":"other"}"#, #"{"app":"macdoc"}"#, #"{"ok":false,"app":"macdoc"}"#,
+                      #"[{"ok":true,"app":"macdoc"}]"#, "not json", String(repeating: " ", count: 4097)] {
+            XCTAssertFalse(HealthProbe.isMacDoc(Data(input.utf8)))
         }
     }
 }

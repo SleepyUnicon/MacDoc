@@ -1,6 +1,6 @@
 // Apply the saved appearance before styles load, so dark visits do not flash light.
 (() => {
-  const key = 'windock-website-theme';
+  const key = 'macdoc-website-theme';
   const root = document.documentElement;
   const system = matchMedia('(prefers-color-scheme: dark)');
   const valid = value => value === 'light' || value === 'dark';

@@ -42,7 +42,7 @@ export function glyphFor(tile) {
 
 export function renderAppIcon(app, lazy = false) {
   const initial = glyphFor({ ...app, label: app.name || app.label });
-  return `<span class="app-icon"><span class="app-icon__fallback">${escapeHtml(initial)}</span><img src="/api/apps/icon?v=3&amp;id=${escapeHtml(encodeURIComponent(app.id))}" alt="" width="48" height="48" decoding="async"${lazy ? ' loading="lazy"' : ""}></span>`;
+  return `<span class="app-icon"><span class="app-icon__fallback">${escapeHtml(initial)}</span><img src="/api/apps/icon?v=4&amp;id=${escapeHtml(encodeURIComponent(app.id))}" alt="" width="48" height="48" decoding="async"${lazy ? ' loading="lazy"' : ""}></span>`;
 }
 
 /**
@@ -149,7 +149,7 @@ export function renderControls(verbs, allowDestructive = true) {
     { title: "Sound", hint: "A little louder. A little quieter.", symbol: "volume", items: [["volume-down", "Quieter"], ["mute-toggle", "Mute"], ["volume-up", "Louder"]] },
     { title: "Playback", hint: "Keep the good stuff playing.", symbol: "music", items: [["media-previous", "Previous"], ["media-play-pause", "Play / pause"], ["media-next", "Next"]] },
     { title: "Display", hint: "Set your built-in screen brightness.", symbol: "sun", items: [["brightness-set", "25%", 25], ["brightness-set", "50%", 50], ["brightness-set", "100%", 100]] },
-    { title: "Your PC", hint: "Power actions ask before continuing.", symbol: "monitor", items: [["lock", "Lock"], ["sleep", "Sleep"], ["restart", "Restart"], ["shutdown", "Shut down"]] },
+    { title: "Your Mac", hint: "Power actions ask before continuing.", symbol: "monitor", items: [["lock", "Lock"], ["sleep", "Sleep"], ["restart", "Restart"], ["shutdown", "Shut down"]] },
   ];
   return groups.map((group) => {
     const items = group.items.filter(([verb]) => verbs.includes(verb) && (allowDestructive || !["sleep", "restart", "shutdown"].includes(verb)));
