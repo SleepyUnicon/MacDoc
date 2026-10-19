@@ -90,6 +90,15 @@ back to a new PIN each start.
 
 Tablets get larger grids: choose 12, 15 or 18 icons per page in **Appearance**.
 
+**Update the tablet over Wi-Fi.** Run `npm run android:update` on the Mac (add
+`--notes "What's new"` if you like). It builds the Android app with the next
+build number and publishes it to `~/.config/macdoc/updates`. MacDoc on the
+tablet checks when it opens and every 30 minutes, and shows an update pop-up
+that has to be tapped; the APK downloads over the paired connection and is
+checked against its SHA-256 before installing. Android asks once to allow
+MacDoc to install apps. To install MacDoc on a new tablet without a cable,
+pair in its browser at the Mac's address, then open `/install`.
+
 ## Get started
 
 | Platform | Availability |

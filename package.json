@@ -18,7 +18,8 @@
     "test:windows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-windows.ps1",
     "test": "node test/run.mjs",
     "gates": "node scripts/gates.mjs --status",
-    "set-pin": "node scripts/set-pin.mjs"
+    "set-pin": "node scripts/set-pin.mjs",
+    "android:update": "node scripts/android-update.mjs"
   },
   "engines": {
     "node": ">=20"

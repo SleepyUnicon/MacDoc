@@ -50,6 +50,7 @@ class MainActivity : Activity() {
     private lateinit var retryButton: Button
     private lateinit var keyboardBar: LinearLayout
     private lateinit var keyboardEditor: RemoteKeyboardEditor
+    private lateinit var updater: AppUpdater
     private var keyboardTarget: String? = null
     private var resumed = false
     private val io = Executors.newSingleThreadExecutor()
@@ -115,6 +116,7 @@ class MainActivity : Activity() {
                 connection.visibility = View.GONE
                 web.visibility = View.VISIBLE
                 hideSystemBars()
+                updater.check(force = true)
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -138,6 +140,8 @@ class MainActivity : Activity() {
                 return true
             }
         }
+        updater = AppUpdater(this) { endpoint.takeIf { web.visibility == View.VISIBLE && !loadFailed } }
+        updater.start()
         reserveEdgeSwipes()
         hideSystemBars()
         connect()
@@ -370,9 +374,10 @@ class MainActivity : Activity() {
         }
     }
 
-    override fun onResume() { super.onResume(); resumed = true; if (::web.isInitialized) web.onResume() }
-    override fun onPause() { resumed = false; hideRemoteKeyboard(); if (::web.isInitialized) web.onPause(); super.onPause() }
+    override fun onResume() { super.onResume(); resumed = true; if (::web.isInitialized) web.onResume(); if (::updater.isInitialized) updater.onResume() }
+    override fun onPause() { resumed = false; hideRemoteKeyboard(); if (::web.isInitialized) web.onPause(); if (::updater.isInitialized) updater.onPause(); super.onPause() }
     override fun onDestroy() {
+        if (::updater.isInitialized) updater.stop()
         io.shutdownNow()
         web.removeCallbacks(loadTimeout)
         web.stopLoading()

@@ -30,6 +30,18 @@ export const MEDIA_OWNERS = Object.freeze({
   "com.apple.WebKit.WebContent": "com.apple.Safari",
 });
 
+/**
+ * The browser that actually runs a player. Web apps installed from Chromium
+ * browsers (a YouTube app from Brave, say) report their own bundle id, such as
+ * com.brave.Browser.app.<id>, but play inside a window of the parent browser.
+ */
+export function mediaOwner(bundleId) {
+  if (!bundleId) return null;
+  if (MEDIA_OWNERS[bundleId]) return MEDIA_OWNERS[bundleId];
+  const webApp = Object.keys(BROWSERS).find((browser) => BROWSERS[browser].kind === "chromium" && bundleId.startsWith(browser + ".app."));
+  return webApp || bundleId;
+}
+
 const SELECTORS = {
   next: [".ytp-next-button", "ytmusic-player-bar .next-button", "[data-testid=control-button-skip-forward]", ".skipControl__next"],
   previous: [".ytp-prev-button", "ytmusic-player-bar .previous-button", "[data-testid=control-button-skip-back]", ".skipControl__previous"],

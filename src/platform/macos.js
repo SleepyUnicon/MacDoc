@@ -31,7 +31,7 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateControl } from "./contract.js";
 import { createMacInput } from "./input.js";
-import { createBrowserMedia, MEDIA_OWNERS } from "./mac-media.js";
+import { createBrowserMedia, mediaOwner } from "./mac-media.js";
 import { createMacMixer, deniedMessage } from "./mac-mixer.js";
 
 /** Uninstallers and background helpers that ship beside real apps. */
@@ -257,7 +257,7 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
    */
   async function mediaTarget() {
     const now = await mediaNow();
-    const owner = now ? MEDIA_OWNERS[now.bundleId] || now.bundleId : null;
+    const owner = now ? mediaOwner(now.bundleId) : null;
     const kindOf = (bundleId) => browsers.supports(bundleId) ? "browser" : PLAYER_SCRIPTS[bundleId] ? "script" : "none";
     if (now?.playing) return { kind: kindOf(owner), bundleId: owner, now };
     const listed = await exec(audioHelperPath, ["list"]).then(({ stdout }) => JSON.parse(stdout)).catch(() => []);
@@ -411,7 +411,8 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
     async nowPlaying() {
       const target = await mediaTarget();
       if (!target) return null;
-      if (target.kind === "browser") {
+      // macOS's own details are richer (title, artist, progress); ask the browser only when macOS doesn't know.
+      if (target.kind === "browser" && !target.now) {
         const info = await browsers.nowPlaying(target.bundleId);
         if (!info) return null;
         return { ...info, rate: info.playing ? 1 : 0, artwork: false };

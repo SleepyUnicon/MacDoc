@@ -13,6 +13,7 @@ import { extname, join, normalize, resolve, sep } from "node:path";
 import { createProvider } from "./src/platform/index.js";
 import { configuredPin, hostSettingsPath, sessionsPath, savePin } from "./src/host-settings.js";
 import { createIconStore } from "./src/custom-icons.js";
+import { createAppUpdates } from "./src/app-updates.js";
 import { createClipboardHub, validateClipboardText } from "./src/clipboard.js";
 import { validateControl, isDestructiveVerb, CONTROL_VERBS } from "./src/platform/contract.js";
 import { createConfigStore } from "./src/config.js";
@@ -144,6 +145,7 @@ export async function createApp({
   const appIcon = createIconCache(provider);
   const clipboard = createClipboardHub({ provider });
   const icons = createIconStore();
+  const appUpdates = createAppUpdates();
   let inventoryPromise;
   let inventoryTime = 0;
   function installedApps() {
@@ -218,7 +220,8 @@ export async function createApp({
       }
 
       if (!path.startsWith("/api/")) {
-        const file = resolveStatic(path === "/setup" || path === "/setup/" ? "/setup.html" : path);
+        const pages = { "/setup": "/setup.html", "/setup/": "/setup.html", "/install": "/install.html", "/install/": "/install.html" };
+        const file = resolveStatic(pages[path] || path);
         if (!file) return sendJson(res, 403, { error: "forbidden" });
         try {
           const body = await readFile(file);
@@ -323,6 +326,15 @@ export async function createApp({
         if (Object.keys(body).length) return sendJson(res, 400, { error: "capture actions take no options" });
         if (!provider.capture) return sendJson(res, 501, { error: "Screen capture is available on Windows." });
         return sendJson(res, 200, await provider.capture[captureActions[path]]());
+      }
+
+      // ---- Tablet app updates (paired devices only) ----
+      if (path === "/api/app/latest" && req.method === "GET") {
+        return sendJson(res, 200, (await appUpdates.latest()) || { available: false });
+      }
+      if (path === "/api/app/apk" && req.method === "GET") {
+        if (!(await appUpdates.send(res))) return sendJson(res, 404, { error: "No tablet app has been published yet. Run npm run android:update on the Mac." });
+        return;
       }
 
       // ---- Setup page ----
