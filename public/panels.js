@@ -99,7 +99,7 @@ export function createPanels({ api, notify, report, clipboard, isReady }) {
     $("player-title").textContent = has ? media.title : "Play something on your Mac";
     $("player-artist").textContent = has ? [media.artist, media.album].filter(Boolean).join(" · ") : "Music, podcasts and videos from any app show up here.";
     $("player-toggle").innerHTML = icon(media?.playing ? "pause" : "play");
-    $("player-note").textContent = has && !media.controllable ? "Controls for " + (media.app || "this app") + " use your Mac's media keys." : "";
+    $("player-note").textContent = has && !media.controllable ? (media.app || "This app") + " can't be controlled from MacDoc yet." : "";
     const key = has && media.artwork ? [media.title, media.artist, media.album].join("|") : "";
     if (key !== artKey) {
       artKey = key;

@@ -31,6 +31,7 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateControl } from "./contract.js";
 import { createMacInput } from "./input.js";
+import { createBrowserMedia, MEDIA_OWNERS } from "./mac-media.js";
 import { createMacMixer, deniedMessage } from "./mac-mixer.js";
 
 /** Apps that live outside the Applications folders but belong on a dock. */
@@ -141,17 +142,6 @@ function run(argv) {
   return JSON.stringify(out);
 }`;
 
-/** Posts a hardware media key (16 play/pause, 17 next, 18 previous); needs Accessibility. */
-const MEDIA_KEY_SCRIPT = `ObjC.import("AppKit");
-ObjC.import("CoreGraphics");
-function run(argv) {
-  const key = Number(argv[0]);
-  for (const flags of [0xa00, 0xb00]) {
-    const event = $.NSEvent.otherEventWithTypeLocationModifierFlagsTimestampWindowNumberContextSubtypeData1Data2(14, $.NSMakePoint(0, 0), flags, 0, 0, $(), 8, (key << 16) | flags, -1);
-    $.CGEventPost(0, event.CGEvent);
-  }
-}`;
-
 const tell = (bundleId, body) => `tell application id "${bundleId}"\n${body}\nend tell`;
 
 /**
@@ -237,6 +227,38 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
   async function running() {
     const { stdout } = await exec("ps", ["-axo", "pid=,comm="]);
     return parseMacPs(stdout);
+  }
+
+  const browsers = createBrowserMedia({ exec });
+  let lastBrowser = null;
+
+  async function isRunning(bundleId) {
+    if (!bundleId) return false;
+    try {
+      const { stdout } = await exec("osascript", ["-e", "on run argv\nreturn application id (item 1 of argv) is running\nend run", bundleId]);
+      return String(stdout).trim() === "true";
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Which app the media controls should drive. macOS's own now-playing entry
+   * wins while it is playing; otherwise trust what is actually making sound,
+   * because that entry can be a stale one (an old Safari tab) and a media key
+   * sent to it would reopen that app.
+   */
+  async function mediaTarget() {
+    const now = await mediaNow();
+    const owner = now ? MEDIA_OWNERS[now.bundleId] || now.bundleId : null;
+    const kindOf = (bundleId) => browsers.supports(bundleId) ? "browser" : PLAYER_SCRIPTS[bundleId] ? "script" : "none";
+    if (now?.playing) return { kind: kindOf(owner), bundleId: owner, now };
+    const listed = await exec(audioHelperPath, ["list"]).then(({ stdout }) => JSON.parse(stdout)).catch(() => []);
+    const sounding = (Array.isArray(listed) ? listed : []).find((app) => app.playing && (browsers.supports(app.bundleId) || PLAYER_SCRIPTS[app.bundleId]));
+    if (sounding) return { kind: browsers.supports(sounding.bundleId) ? "browser" : "script", bundleId: sounding.bundleId, now: null };
+    if (lastBrowser && await isRunning(lastBrowser)) return { kind: "browser", bundleId: lastBrowser, now: null };
+    if (now && await isRunning(owner)) return { kind: kindOf(owner), bundleId: owner, now };
+    return null;
   }
 
   async function mediaNow() {
@@ -340,13 +362,14 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
       const build = MAC_CONTROL[checked.verb];
       if (!build) throw new Error(`unmapped control verb: ${checked.verb}`);
       if (MEDIA_ACTIONS[checked.verb]) {
-        // Drive whichever app macOS says is playing; fall back to the media key.
-        const [action, mediaKey] = MEDIA_ACTIONS[checked.verb];
-        const now = await mediaNow();
-        const script = PLAYER_SCRIPTS[now?.bundleId]?.[action];
-        if (script) await exec("osascript", ["-e", tell(now.bundleId, script)]);
-        else if (!now && await activePlayer()) await exec(...build(checked.value, await activePlayer()));
-        else await exec("osascript", ["-l", "JavaScript", "-e", MEDIA_KEY_SCRIPT, String(mediaKey)]);
+        // No simulated media key: macOS can hand it to a stale app and launch it.
+        const [action] = MEDIA_ACTIONS[checked.verb];
+        const target = await mediaTarget();
+        if (!target) throw Object.assign(new Error("Nothing is playing on your Mac."), { status: 409 });
+        const script = PLAYER_SCRIPTS[target.bundleId]?.[action];
+        if (target.kind === "browser") { await browsers.act(target.bundleId, action); lastBrowser = target.bundleId; }
+        else if (script) await exec("osascript", ["-e", tell(target.bundleId, script)]);
+        else throw Object.assign(new Error(`MacDoc can't control ${target.now?.appName || "that app"} yet. Use its own controls on the Mac.`), { status: 409 });
         return { ok: true, verb: checked.verb };
       }
       const [file, args] = build(checked.value, null);
@@ -355,7 +378,14 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
     },
 
     async nowPlaying() {
-      const now = await mediaNow();
+      const target = await mediaTarget();
+      if (!target) return null;
+      if (target.kind === "browser") {
+        const info = await browsers.nowPlaying(target.bundleId);
+        if (!info) return null;
+        return { ...info, rate: info.playing ? 1 : 0, artwork: false };
+      }
+      const now = target.now;
       if (!now) return null;
       const title = now.title || now.file.replace(/\.[a-z0-9]+$/i, "") || now.appName;
       if (!title) return null;
@@ -373,7 +403,7 @@ export function createMacProvider({ exec, appDirs = APP_DIRS, extraApps = EXTRA_
           : null,
         rate: Number.isFinite(now.rate) ? now.rate : (now.playing ? 1 : 0),
         artwork: Boolean(now.artwork),
-        controllable: Boolean(PLAYER_SCRIPTS[now.bundleId]),
+        controllable: target.kind !== "none",
       };
     },
 

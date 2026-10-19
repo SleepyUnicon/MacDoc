@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.Gravity
 import android.webkit.JavascriptInterface
 import android.webkit.RenderProcessGoneDetail
@@ -66,6 +67,9 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        // A desk dock should stay lit. The flag only applies while MacDoc is
+        // on screen; leaving the app lets the tablet sleep normally again.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         web = findViewById(R.id.web)
         connection = findViewById(R.id.connection)
         status = findViewById(R.id.status)
